@@ -1,0 +1,1157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Birdie Context Architecture</title>
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #F5F5F5;
+    --surface: #FFFFFF;
+    --surface-2: #FDECF8;
+    --surface-3: #F8E0F2;
+    --border: #D9D9D9;
+    --border-light: #C4A0B8;
+    --text: #380527;
+    --text-dim: #6B3A5C;
+    --text-muted: #8A6078;
+    --pink: #F58ED3;
+    --pink-dim: rgba(245, 142, 211, 0.12);
+    --pink-dark: #D159A3;
+    --maroon: #A33278;
+    --green: #5a8a66;
+    --green-dim: rgba(90, 138, 102, 0.10);
+    --purple: #7c6bb5;
+    --purple-dim: rgba(124, 107, 181, 0.10);
+    --amber: #c78a28;
+    --amber-dim: rgba(199, 138, 40, 0.10);
+    --blue: #2986c7;
+    --blue-dim: rgba(41, 134, 199, 0.10);
+    --red: #dc2626;
+    --accent-org: var(--maroon);
+    --accent-org-dim: rgba(163, 50, 120, 0.10);
+    --accent-team: var(--green);
+    --accent-team-dim: var(--green-dim);
+    --accent-personal: var(--purple);
+    --accent-personal-dim: var(--purple-dim);
+    --accent-signal: var(--amber);
+    --accent-signal-dim: var(--amber-dim);
+    --accent-flow: var(--blue);
+    --accent-flow-dim: var(--blue-dim);
+    --radius: 16px;
+    --radius-sm: 10px;
+    --shadow: 0 2px 12px rgba(56, 5, 39, 0.06);
+    --shadow-lg: 0 8px 32px rgba(56, 5, 39, 0.10);
+    --sidebar-w: 280px;
+    --preview-w: 520px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Rubik', -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    overflow-x: hidden;
+    font-size: 14px;
+  }
+
+  /* ── LAYOUT ── */
+  .app-layout { display: flex; min-height: 100vh; }
+
+  /* ── LEFT SIDEBAR ── */
+  .sidebar {
+    width: var(--sidebar-w);
+    min-width: var(--sidebar-w);
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    position: sticky;
+    top: 0;
+    z-index: 20;
+  }
+  .sidebar-header {
+    padding: 18px 16px 14px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .sidebar-header h2 {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .sidebar-header h2 .dot {
+    width: 7px; height: 7px;
+    background: var(--pink);
+    border-radius: 50%;
+    animation: pulse-dot 2s infinite;
+  }
+  @keyframes pulse-dot { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+  .sidebar-search {
+    padding: 8px 16px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .sidebar-search input {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 12px;
+    color: var(--text);
+    outline: none;
+    font-family: inherit;
+  }
+  .sidebar-search input::placeholder { color: var(--text-muted); }
+  .sidebar-search input:focus { border-color: var(--pink); box-shadow: 0 0 0 3px var(--pink-dim); }
+
+  .sidebar-tree {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px 0;
+  }
+  .sidebar-tree::-webkit-scrollbar { width: 4px; }
+  .sidebar-tree::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  .tree-scope { margin-bottom: 2px; }
+  .tree-scope-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 14px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    cursor: pointer;
+    user-select: none;
+    transition: color 0.15s;
+  }
+  .tree-scope-header:hover { opacity: 0.8; }
+  .tree-scope-header .arrow {
+    font-size: 9px;
+    transition: transform 0.2s;
+    width: 12px;
+    text-align: center;
+  }
+  .tree-scope-header .arrow.open { transform: rotate(90deg); }
+  .tree-scope-header.scope-o { color: var(--accent-org); }
+  .tree-scope-header.scope-t { color: var(--accent-team); }
+  .tree-scope-header.scope-p { color: var(--accent-personal); }
+
+  .tree-children { overflow: hidden; transition: max-height 0.25s ease; }
+  .tree-children.collapsed { max-height: 0 !important; }
+
+  .tree-folder-header {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 14px 3px 28px;
+    font-size: 12px;
+    color: var(--text-dim);
+    cursor: pointer;
+    user-select: none;
+    transition: color 0.15s;
+  }
+  .tree-folder-header:hover { color: var(--text); }
+  .tree-folder-header .arrow { font-size: 8px; transition: transform 0.2s; width: 10px; text-align: center; }
+  .tree-folder-header .arrow.open { transform: rotate(90deg); }
+  .tree-folder-header .folder-icon { color: var(--amber); font-size: 11px; }
+
+  .tree-file {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 14px 3px 44px;
+    font-size: 12px;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.12s;
+    border-left: 2px solid transparent;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .tree-file:hover { color: var(--text); background: var(--bg); }
+  .tree-file.active {
+    color: var(--pink-dark);
+    background: var(--pink-dim);
+    border-left-color: var(--pink);
+  }
+  .tree-file .file-icon { font-size: 10px; flex-shrink: 0; width: 12px; text-align: center; }
+  .tree-file .file-icon.idx { color: var(--blue); }
+  .tree-file .file-icon.fixed { color: var(--green); }
+  .tree-file .file-icon.emergent { color: var(--purple); }
+  .tree-file-l2 { padding-left: 58px; }
+
+  .sidebar-stats {
+    padding: 12px 16px;
+    border-top: 1px solid var(--border);
+    font-size: 11px;
+    color: var(--text-muted);
+    flex-shrink: 0;
+    display: flex;
+    gap: 12px;
+  }
+  .sidebar-stats span { display: flex; align-items: center; gap: 4px; }
+  .sidebar-stats .ct { color: var(--text); font-weight: 600; }
+
+  /* ── MAIN CONTENT ── */
+  .main-content { flex: 1; min-width: 0; transition: margin-right 0.3s; }
+  .main-content.pushed { margin-right: var(--preview-w); }
+
+  .header { padding: 36px 40px 24px; max-width: 1200px; }
+  .header-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--pink-dim);
+    border: 1px solid rgba(245,142,211,0.25);
+    border-radius: 100px;
+    padding: 5px 14px;
+    font-size: 11px;
+    color: var(--pink-dark);
+    font-weight: 600;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+    margin-bottom: 16px;
+  }
+  .header h1 {
+    font-size: 34px;
+    font-weight: 700;
+    letter-spacing: -0.8px;
+    margin-bottom: 6px;
+    color: var(--text);
+  }
+  .header p { font-size: 15px; color: var(--text-dim); max-width: 600px; line-height: 1.7; }
+
+  .nav-tabs {
+    display: flex;
+    gap: 2px;
+    padding: 0 40px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+  .nav-tab {
+    padding: 10px 18px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-muted);
+    cursor: pointer;
+    border: none;
+    border-bottom: 2px solid transparent;
+    background: none;
+    transition: all 0.2s;
+    font-family: inherit;
+  }
+  .nav-tab:hover { color: var(--text-dim); }
+  .nav-tab.active { color: var(--pink-dark); border-bottom-color: var(--pink); }
+
+  .section {
+    display: none;
+    padding: 32px 40px;
+    max-width: 1200px;
+    animation: fadeIn 0.25s ease;
+  }
+  .section.active { display: block; }
+  @keyframes fadeIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
+
+  /* ── PREVIEW PANEL ── */
+  .preview-panel {
+    position: fixed;
+    top: 0; right: 0;
+    width: var(--preview-w);
+    height: 100vh;
+    background: var(--surface);
+    border-left: 1px solid var(--border);
+    z-index: 30;
+    transform: translateX(100%);
+    transition: transform 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    box-shadow: -4px 0 24px rgba(56,5,39,0.08);
+  }
+  .preview-panel.open { transform: translateX(0); }
+  .preview-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+    background: var(--bg);
+  }
+  .preview-close {
+    width: 28px; height: 28px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text-dim);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    transition: all 0.15s;
+    flex-shrink: 0;
+  }
+  .preview-close:hover { background: var(--surface-2); color: var(--text); }
+  .preview-path {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--pink-dark);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .preview-badge {
+    margin-left: auto;
+    font-size: 9px;
+    padding: 3px 8px;
+    border-radius: 100px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 600;
+    flex-shrink: 0;
+  }
+  .preview-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 24px;
+  }
+  .preview-body::-webkit-scrollbar { width: 4px; }
+  .preview-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  /* Markdown rendering */
+  .md h1 { font-size: 20px; font-weight: 700; margin-bottom: 16px; color: var(--text); }
+  .md h2 { font-size: 14px; font-weight: 700; margin: 20px 0 10px; color: var(--text); padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+  .md h3 { font-size: 12px; font-weight: 700; margin: 16px 0 8px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; }
+  .md p { font-size: 13px; color: var(--text-dim); margin-bottom: 10px; line-height: 1.7; }
+  .md ul, .md ol { padding-left: 18px; margin-bottom: 12px; }
+  .md li { font-size: 13px; color: var(--text-dim); margin-bottom: 4px; line-height: 1.6; }
+  .md strong { color: var(--text); font-weight: 600; }
+  .md code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    background: var(--surface-2);
+    padding: 2px 6px;
+    border-radius: 4px;
+    color: var(--pink-dark);
+  }
+  .md .tag { display: inline-block; font-size: 10px; padding: 2px 8px; border-radius: 100px; margin: 0 2px 4px 0; font-weight: 600; }
+  .md .tag-signal { background: var(--amber-dim); color: var(--amber); }
+  .md .tag-scope { background: var(--blue-dim); color: var(--blue); }
+  .md .tag-status { background: var(--green-dim); color: var(--green); }
+  .md .tag-person { background: var(--purple-dim); color: var(--purple); }
+  .md table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 12px; }
+  .md th { text-align: left; padding: 8px 10px; background: var(--bg); border: 1px solid var(--border); color: var(--text-dim); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.3px; }
+  .md td { padding: 7px 10px; border: 1px solid var(--border); color: var(--text-dim); }
+  .md hr { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
+  .md blockquote {
+    border-left: 3px solid var(--pink);
+    padding: 8px 14px;
+    margin: 12px 0;
+    background: var(--pink-dim);
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+  .md .meta-row {
+    display: flex;
+    gap: 16px;
+    padding: 10px 14px;
+    background: var(--bg);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    margin-bottom: 16px;
+    font-size: 11px;
+    color: var(--text-dim);
+    flex-wrap: wrap;
+  }
+  .md .meta-row .meta-label { color: var(--text-muted); }
+  .md .meta-row .meta-val { color: var(--text); font-weight: 500; }
+  .md .signal-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 100px;
+    font-weight: 600;
+  }
+  .md .signal-high { background: rgba(163,50,120,0.10); color: var(--maroon); }
+  .md .signal-mid { background: var(--green-dim); color: var(--green); }
+  .md .signal-low { background: var(--amber-dim); color: var(--amber); }
+
+  /* ── COMPONENTS ── */
+  .principle-banner {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 28px;
+    margin-bottom: 32px;
+    position: relative;
+    overflow: hidden;
+    box-shadow: var(--shadow);
+  }
+  .principle-banner::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--accent-org), var(--pink), var(--accent-personal));
+  }
+  .principle-banner h3 { font-size: 16px; font-weight: 700; margin-bottom: 6px; }
+  .principle-banner p { color: var(--text-dim); font-size: 13px; }
+  .principle-pills { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+  .principle-pill {
+    padding: 5px 14px;
+    border-radius: 100px;
+    font-size: 11px;
+    font-weight: 500;
+    background: var(--pink-dim);
+    color: var(--pink-dark);
+    border: 1px solid rgba(245,142,211,0.2);
+  }
+
+  .scope-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 32px; }
+  .scope-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    transition: all 0.25s;
+    cursor: pointer;
+    box-shadow: var(--shadow);
+  }
+  .scope-card:hover { border-color: var(--border-light); transform: translateY(-2px); box-shadow: var(--shadow-lg); }
+  .scope-header { padding: 20px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--border); }
+  .scope-icon { width: 40px; height: 40px; border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .scope-org .scope-icon { background: var(--accent-org-dim); }
+  .scope-team .scope-icon { background: var(--accent-team-dim); }
+  .scope-personal .scope-icon { background: var(--accent-personal-dim); }
+  .scope-title { font-size: 15px; font-weight: 700; }
+  .scope-subtitle { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+  .scope-body { padding: 16px 20px; }
+
+  .file-tree { font-size: 12px; font-family: 'JetBrains Mono', monospace; }
+  .file-tree-item {
+    padding: 4px 0;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    color: var(--text-dim);
+    cursor: pointer;
+    transition: color 0.15s;
+  }
+  .file-tree-item:hover { color: var(--text); }
+  .file-tree-item .icon { font-size: 12px; width: 14px; text-align: center; }
+  .file-tree-item.folder .icon { color: var(--amber); }
+  .file-tree-item.index-file .icon { color: var(--blue); }
+  .file-tree-item.schema-file .icon { color: var(--green); }
+  .file-tree-item.emergent-file .icon { color: var(--purple); }
+  .file-tree-indent { padding-left: 18px; }
+  .file-badge {
+    font-size: 8px;
+    padding: 2px 6px;
+    border-radius: 100px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 600;
+    margin-left: auto;
+  }
+  .badge-fixed { background: var(--green-dim); color: var(--green); }
+  .badge-emergent { background: var(--purple-dim); color: var(--purple); }
+  .badge-index { background: var(--blue-dim); color: var(--blue); }
+
+  .people-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; margin-bottom: 32px; }
+  .person-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: var(--shadow);
+  }
+  .person-card:hover { transform: translateY(-1px); box-shadow: var(--shadow-lg); }
+  .person-card.active { border-color: var(--pink); background: var(--pink-dim); }
+  .person-avatar { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; margin-bottom: 8px; }
+  .person-name { font-size: 13px; font-weight: 600; }
+  .person-role { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+  .person-scopes { display: flex; gap: 4px; margin-top: 8px; }
+  .person-scope-dot { width: 7px; height: 7px; border-radius: 50%; opacity: 0.25; }
+  .person-scope-dot.active { opacity: 1; }
+  .dot-org { background: var(--accent-org); }
+  .dot-team { background: var(--accent-team); }
+  .dot-personal { background: var(--accent-personal); }
+
+  .client-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; margin-bottom: 32px; }
+  .client-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: var(--shadow);
+  }
+  .client-card:hover { border-color: var(--pink); transform: translateY(-2px); box-shadow: var(--shadow-lg); }
+  .client-card.active { border-color: var(--pink); background: var(--pink-dim); }
+  .client-name { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+  .client-path { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-muted); margin-bottom: 10px; }
+  .client-files { display: none; }
+  .client-card.active .client-files { display: block; }
+
+  .detail-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin-top: 20px;
+    display: none;
+    animation: fadeIn 0.25s ease;
+    box-shadow: var(--shadow);
+  }
+  .detail-panel.visible { display: block; }
+  .detail-panel h4 { font-size: 15px; font-weight: 700; margin-bottom: 14px; }
+  .detail-context-list { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .detail-context-item { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px; }
+  .detail-context-item h5 { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+  .dci-org h5 { color: var(--accent-org); }
+  .dci-team h5 { color: var(--accent-team); }
+  .dci-personal h5 { color: var(--accent-personal); }
+  .detail-context-item ul { list-style: none; font-size: 11px; color: var(--text-dim); }
+  .detail-context-item li { padding: 2px 0; display: flex; align-items: center; gap: 5px; }
+  .detail-context-item li::before { content: ''; width: 3px; height: 3px; border-radius: 50%; background: var(--text-muted); flex-shrink: 0; }
+
+  .signal-calculator { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 28px; margin-bottom: 28px; box-shadow: var(--shadow); }
+  .signal-calculator h3 { font-size: 16px; font-weight: 700; margin-bottom: 18px; }
+  .signal-dimensions { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-bottom: 28px; }
+  .dimension { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 18px; }
+  .dimension-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  .dimension-name { font-size: 13px; font-weight: 600; }
+  .dimension-weight { font-size: 11px; color: var(--pink-dark); font-weight: 600; }
+  .dimension-desc { font-size: 11px; color: var(--text-dim); margin-bottom: 12px; }
+  .slider-row { display: flex; align-items: center; gap: 10px; }
+  .slider-label { font-size: 10px; color: var(--text-muted); width: 20px; text-align: center; flex-shrink: 0; }
+  input[type="range"] {
+    -webkit-appearance: none; appearance: none;
+    width: 100%; height: 5px;
+    background: var(--border);
+    border-radius: 3px; outline: none;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: var(--pink);
+    cursor: pointer;
+    border: 2px solid var(--surface);
+    box-shadow: 0 1px 4px rgba(56,5,39,0.2);
+  }
+  .slider-value { font-size: 16px; font-weight: 700; color: var(--pink-dark); width: 24px; text-align: center; flex-shrink: 0; }
+  .signal-result { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; text-align: center; }
+  .signal-score { font-size: 56px; font-weight: 700; letter-spacing: -2px; margin-bottom: 4px; transition: color 0.3s; }
+  .signal-action { font-size: 13px; font-weight: 500; padding: 5px 14px; border-radius: 100px; display: inline-block; margin-top: 6px; transition: all 0.3s; }
+  .action-log { background: var(--purple-dim); color: var(--purple); }
+  .action-low { background: var(--amber-dim); color: var(--amber); }
+  .action-recommend { background: var(--green-dim); color: var(--green); }
+  .action-proactive { background: rgba(163,50,120,0.10); color: var(--maroon); }
+  .signal-bar-bg { width: 100%; height: 6px; background: var(--border); border-radius: 3px; margin-top: 14px; overflow: hidden; }
+  .signal-bar-fill { height: 100%; border-radius: 3px; transition: width 0.4s ease, background 0.3s; }
+
+  .thresholds { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 20px; }
+  .threshold-card { padding: 12px; border-radius: var(--radius-sm); text-align: center; border: 1px solid var(--border); transition: all 0.3s; }
+  .threshold-card.active-threshold { transform: scale(1.05); box-shadow: var(--shadow-lg); }
+  .threshold-range { font-size: 16px; font-weight: 700; margin-bottom: 3px; }
+  .threshold-label { font-size: 10px; color: var(--text-dim); }
+  .t-log { background: var(--purple-dim); } .t-log .threshold-range { color: var(--purple); }
+  .t-low { background: var(--amber-dim); } .t-low .threshold-range { color: var(--amber); }
+  .t-rec { background: var(--green-dim); } .t-rec .threshold-range { color: var(--green); }
+  .t-pro { background: rgba(163,50,120,0.10); } .t-pro .threshold-range { color: var(--maroon); }
+
+  .flow-row { display: flex; align-items: center; justify-content: center; gap: 20px; margin-bottom: 20px; flex-wrap: wrap; }
+  .flow-node { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 20px; text-align: center; min-width: 130px; transition: all 0.3s; box-shadow: var(--shadow); }
+  .flow-node:hover { transform: translateY(-1px); box-shadow: var(--shadow-lg); }
+  .flow-node-title { font-size: 12px; font-weight: 600; margin-bottom: 3px; }
+  .flow-node-sub { font-size: 10px; color: var(--text-dim); }
+  .flow-node.ingress { border-left: 3px solid var(--blue); }
+  .flow-node.birdie { border-left: 3px solid var(--pink); background: var(--pink-dim); }
+  .flow-node.scope { border-left: 3px solid var(--green); }
+  .flow-node.output { border-left: 3px solid var(--maroon); }
+  .flow-arrow { color: var(--text-muted); font-size: 18px; flex-shrink: 0; }
+  .flow-arrow-down { text-align: center; color: var(--text-muted); font-size: 22px; margin: -4px 0; }
+
+  .section-header { margin-bottom: 20px; }
+  .section-header h2 { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; margin-bottom: 4px; }
+  .section-header p { font-size: 13px; color: var(--text-dim); }
+
+  .write-rules-demo { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 28px; margin-bottom: 28px; box-shadow: var(--shadow); }
+  .write-demo-input { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 14px; margin-bottom: 20px; font-size: 12px; color: var(--text-dim); font-style: italic; }
+  .write-demo-routes { display: flex; gap: 14px; justify-content: center; }
+  .route-target { text-align: center; padding: 14px; border-radius: var(--radius-sm); border: 1px solid var(--border); min-width: 130px; transition: all 0.5s; }
+  .route-target .route-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 3px; }
+  .route-target .route-file { font-size: 11px; font-family: 'JetBrains Mono', monospace; color: var(--text-dim); }
+  .route-org { background: var(--accent-org-dim); } .route-org .route-label { color: var(--accent-org); }
+  .route-team { background: var(--accent-team-dim); } .route-team .route-label { color: var(--accent-team); }
+  .route-personal { background: var(--accent-personal-dim); } .route-personal .route-label { color: var(--accent-personal); }
+  .play-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 8px 20px; border-radius: 100px;
+    border: 1px solid var(--pink);
+    background: var(--pink-dim); color: var(--pink-dark);
+    font-size: 12px; font-weight: 600; cursor: pointer;
+    transition: all 0.2s; margin-bottom: 16px; font-family: inherit;
+  }
+  .play-btn:hover { background: var(--pink); color: #fff; }
+
+  .schema-compare { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 32px; }
+  .schema-box { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; box-shadow: var(--shadow); }
+  .schema-box h3 { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+  .schema-box p { font-size: 12px; color: var(--text-dim); margin-bottom: 14px; }
+  .schema-item {
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 10px; background: var(--bg);
+    border-radius: var(--radius-sm); margin-bottom: 5px;
+    font-size: 12px; font-family: 'JetBrains Mono', monospace;
+    cursor: pointer; transition: all 0.15s;
+    border: 1px solid transparent;
+  }
+  .schema-item:hover { border-color: var(--border); background: var(--surface-2); }
+  .schema-item .dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .dot-fixed { background: var(--green); }
+  .dot-emergent { background: var(--purple); }
+
+  .emergent-suggestion {
+    background: var(--purple-dim);
+    border: 1px dashed rgba(124,107,181,0.4);
+    border-radius: var(--radius-sm);
+    padding: 14px; margin-top: 14px;
+    font-size: 12px; color: var(--text-dim);
+  }
+  .emergent-suggestion strong { color: var(--purple); font-weight: 600; }
+  .emergent-btn {
+    display: inline-flex; align-items: center; gap: 5px;
+    margin-top: 8px; padding: 5px 12px;
+    border-radius: 8px; border: 1px solid rgba(124,107,181,0.4);
+    background: rgba(124,107,181,0.08); color: var(--purple);
+    font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.2s;
+    font-family: inherit;
+  }
+  .emergent-btn:hover { background: rgba(124,107,181,0.2); }
+
+  .sidebar-toggle {
+    display: none; position: fixed; bottom: 20px; left: 20px; z-index: 25;
+    width: 44px; height: 44px; border-radius: 50%;
+    background: var(--pink); color: #fff; border: none;
+    font-size: 18px; cursor: pointer; box-shadow: var(--shadow-lg);
+  }
+
+  @media (max-width: 1000px) {
+    .sidebar { position: fixed; left: 0; transform: translateX(-100%); z-index: 25; }
+    .sidebar.mobile-open { transform: translateX(0); }
+    .sidebar-toggle { display: flex; align-items: center; justify-content: center; }
+    .scope-grid { grid-template-columns: 1fr; }
+    .signal-dimensions { grid-template-columns: 1fr; }
+    .schema-compare { grid-template-columns: 1fr; }
+    .detail-context-list { grid-template-columns: 1fr; }
+    .thresholds { grid-template-columns: repeat(2, 1fr); }
+    .main-content.pushed { margin-right: 0; }
+    .preview-panel { width: 100%; }
+  }
+</style>
+</head>
+<body>
+
+<div class="app-layout">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header"><h2><span class="dot"></span> Context Store</h2></div>
+    <div class="sidebar-search"><input type="text" placeholder="Search files..." id="sidebarSearch" oninput="filterTree(this.value)"></div>
+    <div class="sidebar-tree" id="sidebarTree"></div>
+    <div class="sidebar-stats"><span><span class="ct" id="statFiles">0</span> files</span><span><span class="ct" id="statScopes">3</span> scopes</span><span><span class="ct" id="statPrograms">9</span> programs</span></div>
+  </aside>
+
+  <div class="main-content" id="mainContent">
+    <div class="header">
+      <div class="header-badge">BirdsAtFive Platform</div>
+      <h1>Birdie Context Architecture</h1>
+      <p>All work starts and ends with Birdie. A mandatory checkpoint that loads context before work begins and routes output back as signal.</p>
+    </div>
+
+    <div class="nav-tabs">
+      <button class="nav-tab active" data-tab="overview">Overview</button>
+      <button class="nav-tab" data-tab="people">People</button>
+      <button class="nav-tab" data-tab="clients">Clients</button>
+      <button class="nav-tab" data-tab="scopes">Scopes</button>
+      <button class="nav-tab" data-tab="schemas">Schemas</button>
+      <button class="nav-tab" data-tab="signal">Signal</button>
+      <button class="nav-tab" data-tab="flow">Flow</button>
+    </div>
+
+    <!-- OVERVIEW -->
+    <div class="section active" id="overview">
+      <div class="principle-banner">
+        <h3>Core Principle: All Work Starts and Ends with Birdie</h3>
+        <p>Birdie is a mandatory checkpoint, not a passive store. Context is loaded before work begins, and output flows back as signal into the pipeline.</p>
+        <div class="principle-pills"><span class="principle-pill">MCP</span><span class="principle-pill">Upload</span><span class="principle-pill">Chrome Extension</span><span class="principle-pill">Meeting Capture</span><span class="principle-pill">Work Artifacts</span></div>
+      </div>
+      <div class="scope-grid">
+        <!-- ORG first -->
+        <div class="scope-card scope-org" onclick="switchTab('scopes')">
+          <div class="scope-header">
+            <div class="scope-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#A33278" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v3"/></svg></div>
+            <div><div class="scope-title">Org</div><div class="scope-subtitle">What's true about the company / brand</div></div>
+          </div>
+          <div class="scope-body"><div class="file-tree">
+            <div class="file-tree-item index-file" onclick="event.stopPropagation();openFile('org/_index.md')"><span class="icon">&#9670;</span> _index.md <span class="file-badge badge-index">index</span></div>
+            <div class="file-tree-item schema-file" onclick="event.stopPropagation();openFile('org/brand-voice.md')"><span class="icon">&#9632;</span> brand-voice.md <span class="file-badge badge-fixed">fixed</span></div>
+            <div class="file-tree-item schema-file" onclick="event.stopPropagation();openFile('org/positioning.md')"><span class="icon">&#9632;</span> positioning.md <span class="file-badge badge-fixed">fixed</span></div>
+          </div></div>
+        </div>
+        <!-- TEAM second -->
+        <div class="scope-card scope-team" onclick="switchTab('clients')">
+          <div class="scope-header">
+            <div class="scope-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5a8a66" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
+            <div><div class="scope-title">Team</div><div class="scope-subtitle">Multiplayer activities, programs, campaigns</div></div>
+          </div>
+          <div class="scope-body"><div class="file-tree">
+            <div class="file-tree-item index-file"><span class="icon">&#9670;</span> _index.md</div>
+            <div class="file-tree-item folder"><span class="icon">&#9654;</span> hempel-abm/</div>
+            <div class="file-tree-item folder"><span class="icon">&#9654;</span> nilfisk-abm/</div>
+            <div class="file-tree-item folder" style="color:var(--text-muted)"><span class="icon">&#9654;</span> + 7 more programs</div>
+          </div></div>
+        </div>
+        <!-- PERSONAL third -->
+        <div class="scope-card scope-personal" onclick="switchTab('scopes')">
+          <div class="scope-header">
+            <div class="scope-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#7c6bb5" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M6 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/></svg></div>
+            <div><div class="scope-title">Personal</div><div class="scope-subtitle">What's true about you</div></div>
+          </div>
+          <div class="scope-body"><div class="file-tree">
+            <div class="file-tree-item index-file" onclick="event.stopPropagation();openFile('personal/_index.md')"><span class="icon">&#9670;</span> _index.md <span class="file-badge badge-index">index</span></div>
+            <div class="file-tree-item schema-file" onclick="event.stopPropagation();openFile('personal/role.md')"><span class="icon">&#9632;</span> role.md <span class="file-badge badge-fixed">fixed</span></div>
+            <div class="file-tree-item schema-file" onclick="event.stopPropagation();openFile('personal/preferences.md')"><span class="icon">&#9632;</span> preferences.md <span class="file-badge badge-fixed">fixed</span></div>
+            <div class="file-tree-item schema-file" onclick="event.stopPropagation();openFile('personal/projects.md')"><span class="icon">&#9632;</span> projects.md <span class="file-badge badge-fixed">fixed</span></div>
+          </div></div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;">
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:18px;text-align:center;box-shadow:var(--shadow);"><div style="font-size:28px;font-weight:700;color:var(--accent-org);">3</div><div style="font-size:11px;color:var(--text-dim);margin-top:3px;">Context Scopes</div></div>
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:18px;text-align:center;box-shadow:var(--shadow);"><div style="font-size:28px;font-weight:700;color:var(--accent-team);">9</div><div style="font-size:11px;color:var(--text-dim);margin-top:3px;">Client Programs</div></div>
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:18px;text-align:center;box-shadow:var(--shadow);"><div style="font-size:28px;font-weight:700;color:var(--accent-personal);">16</div><div style="font-size:11px;color:var(--text-dim);margin-top:3px;">Team Members</div></div>
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:18px;text-align:center;box-shadow:var(--shadow);"><div style="font-size:28px;font-weight:700;color:var(--pink-dark);">4</div><div style="font-size:11px;color:var(--text-dim);margin-top:3px;">Signal Dimensions</div></div>
+      </div>
+    </div>
+
+    <!-- PEOPLE -->
+    <div class="section" id="people">
+      <div class="section-header"><h2>Team Members</h2><p>Each person has their own personal/ scope. Click to see their context layers.</p></div>
+      <div class="people-grid" id="peopleGrid"></div>
+      <div class="detail-panel" id="personDetail"></div>
+    </div>
+
+    <!-- CLIENTS -->
+    <div class="section" id="clients">
+      <div class="section-header"><h2>Client Programs</h2><p>Each client program lives as a folder under team/. Click to expand, click any file to preview.</p></div>
+      <div class="client-grid" id="clientGrid"></div>
+    </div>
+
+    <!-- SCOPES -->
+    <div class="section" id="scopes">
+      <div class="section-header"><h2>Context Scopes in Detail</h2><p>Three parallel layers that can all write to each other. Users never categorize &mdash; Birdie's routing pipeline decides relevance.</p></div>
+      <div class="write-rules-demo">
+        <h3 style="font-size:15px;font-weight:700;margin-bottom:14px;">Write Rules: One Input, Multiple Destinations</h3>
+        <button class="play-btn" onclick="playRouteDemo()">&#9654; Simulate a Signal Route</button>
+        <div class="write-demo-input" id="demoInput">"After the Hempel workshop, their CMO confirmed the new sustainability messaging resonates."</div>
+        <div class="write-demo-routes">
+          <div class="route-target route-org" id="route-o"><div class="route-label">Org</div><div class="route-file">positioning.md</div><div style="font-size:10px;color:var(--text-dim);margin-top:3px;opacity:0;" id="route-o-note">Revision flag added</div></div>
+          <div class="route-target route-team" id="route-t"><div class="route-label">Team</div><div class="route-file">hempel-abm/decisions.md</div><div style="font-size:10px;color:var(--text-dim);margin-top:3px;opacity:0;" id="route-t-note">CMO confirmation logged</div></div>
+          <div class="route-target route-personal" id="route-p"><div class="route-label">Personal</div><div class="route-file">projects.md</div><div style="font-size:10px;color:var(--text-dim);margin-top:3px;opacity:0;" id="route-p-note">Updated workshop notes</div></div>
+        </div>
+      </div>
+      <div class="scope-grid" style="grid-template-columns:1fr;">
+        <!-- ORG first -->
+        <div class="scope-card scope-org" style="cursor:default;">
+          <div class="scope-header">
+            <div class="scope-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#A33278" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v3"/></svg></div>
+            <div><div class="scope-title">org/ &mdash; What's true about the company</div><div class="scope-subtitle">Brand-level context shared across all team members and programs</div></div>
+          </div>
+          <div class="scope-body"><div class="file-tree">
+            <div class="file-tree-item index-file" onclick="openFile('org/_index.md')"><span class="icon">&#9670;</span> org/_index.md <span class="file-badge badge-index">index</span></div>
+            <div class="file-tree-item schema-file" onclick="openFile('org/brand-voice.md')"><span class="icon">&#9632;</span> org/brand-voice.md <span class="file-badge badge-fixed">fixed</span></div>
+            <div class="file-tree-item schema-file" onclick="openFile('org/positioning.md')"><span class="icon">&#9632;</span> org/positioning.md <span class="file-badge badge-fixed">fixed</span></div>
+            <div class="file-tree-item schema-file" onclick="openFile('org/values.md')"><span class="icon">&#9632;</span> org/values.md <span class="file-badge badge-fixed">fixed</span></div>
+            <div class="file-tree-item schema-file" onclick="openFile('org/visual-identity.md')"><span class="icon">&#9632;</span> org/visual-identity.md <span class="file-badge badge-fixed">fixed</span></div>
+            <div class="file-tree-item emergent-file" onclick="openFile('org/tone-guidelines.md')"><span class="icon">&#9671;</span> org/tone-guidelines.md <span class="file-badge badge-emergent">emergent</span></div>
+          </div></div>
+        </div>
+        <!-- TEAM second -->
+        <div class="scope-card scope-team" style="cursor:default;">
+          <div class="scope-header">
+            <div class="scope-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5a8a66" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
+            <div><div class="scope-title">team/ &mdash; Multiplayer activities</div><div class="scope-subtitle">All programs, campaigns, and initiatives.</div></div>
+          </div>
+          <div class="scope-body"><div class="file-tree" id="teamScopeTree"></div></div>
+        </div>
+        <!-- PERSONAL third -->
+        <div class="scope-card scope-personal" style="cursor:default;">
+          <div class="scope-header">
+            <div class="scope-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#7c6bb5" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M6 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/></svg></div>
+            <div><div class="scope-title">personal/ &mdash; What's true about you</div><div class="scope-subtitle">Each of the 16 team members has their own personal scope</div></div>
+          </div>
+          <div class="scope-body"><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:6px;" id="personalScopePeople"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SCHEMAS -->
+    <div class="section" id="schemas">
+      <div class="section-header"><h2>Schema Model</h2><p>Fixed schemas are canonical. Emergent schemas are surfaced by Birdie. Click any file to preview.</p></div>
+      <div class="schema-compare">
+        <div class="schema-box">
+          <h3 style="color:var(--green);">Fixed Schemas</h3>
+          <p>Universal data types every commercial team needs. More customers = smarter schema library.</p>
+          <div class="schema-item" onclick="openFile('org/brand-voice.md')"><div class="dot dot-fixed"></div> brand-voice.md</div>
+          <div class="schema-item" onclick="openFile('org/positioning.md')"><div class="dot dot-fixed"></div> positioning.md</div>
+          <div class="schema-item" onclick="openFile('org/values.md')"><div class="dot dot-fixed"></div> values.md</div>
+          <div class="schema-item" onclick="openFile('team/hempel-abm/message-house.md')"><div class="dot dot-fixed"></div> message-house.md</div>
+          <div class="schema-item" onclick="openFile('team/hempel-abm/icp.md')"><div class="dot dot-fixed"></div> icp.md</div>
+          <div class="schema-item" onclick="openFile('team/hempel-abm/decisions.md')"><div class="dot dot-fixed"></div> decisions.md</div>
+          <div class="schema-item" onclick="openFile('team/hempel-abm/campaign-brief.md')"><div class="dot dot-fixed"></div> campaign-brief.md</div>
+          <div class="schema-item" onclick="openFile('personal/role.md')"><div class="dot dot-fixed"></div> role.md</div>
+          <div class="schema-item" onclick="openFile('personal/preferences.md')"><div class="dot dot-fixed"></div> preferences.md</div>
+          <div class="schema-item" onclick="openFile('personal/projects.md')"><div class="dot dot-fixed"></div> projects.md</div>
+        </div>
+        <div class="schema-box">
+          <h3 style="color:var(--purple);">Emergent Schemas</h3>
+          <p>When Birdie detects a pattern worth capturing, it surfaces a suggestion. User approves.</p>
+          <div class="schema-item" style="border:1px dashed rgba(124,107,181,0.3);" onclick="openFile('team/hempel-abm/competitor-positioning.md')"><div class="dot dot-emergent"></div> competitor-positioning.md</div>
+          <div class="schema-item" style="border:1px dashed rgba(124,107,181,0.3);" onclick="openFile('team/hempel-abm/meeting-cadence.md')"><div class="dot dot-emergent"></div> meeting-cadence.md</div>
+          <div class="schema-item" style="border:1px dashed rgba(124,107,181,0.3);" onclick="openFile('team/hempel-abm/stakeholder-map.md')"><div class="dot dot-emergent"></div> stakeholder-map.md</div>
+          <div class="schema-item" style="border:1px dashed rgba(124,107,181,0.3);" onclick="openFile('team/hempel-abm/pain-points.md')"><div class="dot dot-emergent"></div> pain-points.md</div>
+          <div class="emergent-suggestion">
+            <strong>Birdie:</strong> "I'm seeing enough competitor analysis across Hempel and Nilfisk to warrant its own file &mdash; want me to create <code>competitor-positioning.md</code>?"<br>
+            <button class="emergent-btn" onclick="this.textContent='Approved';this.style.background='var(--green-dim)';this.style.color='var(--green)';this.style.borderColor='rgba(90,138,102,0.4)';">Approve</button>
+            <button class="emergent-btn" onclick="this.textContent='Rejected (logged)';this.style.background='rgba(220,38,38,0.08)';this.style.color='var(--red)';this.style.borderColor='rgba(220,38,38,0.3)';" style="margin-left:3px;">Reject</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SIGNAL -->
+    <div class="section" id="signal">
+      <div class="section-header"><h2>Signal Strength Calculator</h2><p>Every signal Birdie processes is scored across 4 dimensions. Adjust the sliders.</p></div>
+      <div class="signal-calculator">
+        <div class="signal-dimensions">
+          <div class="dimension"><div class="dimension-header"><span class="dimension-name">Source Authority</span><span class="dimension-weight">35%</span></div><div class="dimension-desc">Who or what generated the signal</div><div class="slider-row"><span class="slider-label">1</span><input type="range" min="1" max="5" value="3" id="slider-authority" oninput="updateSignal()"><span class="slider-label">5</span><span class="slider-value" id="val-authority">3</span></div><div style="display:flex;justify-content:space-between;margin-top:4px;"><span style="font-size:9px;color:var(--text-muted);">Unknown</span><span style="font-size:9px;color:var(--text-muted);">C-level / customer</span></div></div>
+          <div class="dimension"><div class="dimension-header"><span class="dimension-name">Corroboration</span><span class="dimension-weight">30%</span></div><div class="dimension-desc">How many independent sources say the same thing</div><div class="slider-row"><span class="slider-label">1</span><input type="range" min="1" max="5" value="2" id="slider-corroboration" oninput="updateSignal()"><span class="slider-label">5</span><span class="slider-value" id="val-corroboration">2</span></div><div style="display:flex;justify-content:space-between;margin-top:4px;"><span style="font-size:9px;color:var(--text-muted);">Single mention</span><span style="font-size:9px;color:var(--text-muted);">4+ sources</span></div></div>
+          <div class="dimension"><div class="dimension-header"><span class="dimension-name">Recency</span><span class="dimension-weight">20%</span></div><div class="dimension-desc">How fresh the signal is</div><div class="slider-row"><span class="slider-label">1</span><input type="range" min="1" max="5" value="4" id="slider-recency" oninput="updateSignal()"><span class="slider-label">5</span><span class="slider-value" id="val-recency">4</span></div><div style="display:flex;justify-content:space-between;margin-top:4px;"><span style="font-size:9px;color:var(--text-muted);">12+ months</span><span style="font-size:9px;color:var(--text-muted);">Last 2 weeks</span></div></div>
+          <div class="dimension"><div class="dimension-header"><span class="dimension-name">Specificity</span><span class="dimension-weight">15%</span></div><div class="dimension-desc">How concrete and named the signal is</div><div class="slider-row"><span class="slider-label">1</span><input type="range" min="1" max="5" value="3" id="slider-specificity" oninput="updateSignal()"><span class="slider-label">5</span><span class="slider-value" id="val-specificity">3</span></div><div style="display:flex;justify-content:space-between;margin-top:4px;"><span style="font-size:9px;color:var(--text-muted);">Vague</span><span style="font-size:9px;color:var(--text-muted);">Concrete, quantified</span></div></div>
+        </div>
+        <div class="signal-result">
+          <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:3px;">Signal Score</div>
+          <div class="signal-score" id="signalScore">59</div>
+          <div class="signal-bar-bg"><div class="signal-bar-fill" id="signalBar" style="width:59%;"></div></div>
+          <div class="signal-action" id="signalAction">Surface as low-priority suggestion</div>
+        </div>
+        <div class="thresholds">
+          <div class="threshold-card t-log"><div class="threshold-range">0 &ndash; 40</div><div class="threshold-label">Log, do not surface</div></div>
+          <div class="threshold-card t-low"><div class="threshold-range">41 &ndash; 65</div><div class="threshold-label">Low-priority suggestion</div></div>
+          <div class="threshold-card t-rec"><div class="threshold-range">66 &ndash; 85</div><div class="threshold-label">Recommendation</div></div>
+          <div class="threshold-card t-pro"><div class="threshold-range">86 &ndash; 100</div><div class="threshold-label">Proactive flag</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- FLOW -->
+    <div class="section" id="flow">
+      <div class="section-header"><h2>Data Flow Architecture</h2><p>How signals enter Birdie, get processed, scored, and routed.</p></div>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:28px;box-shadow:var(--shadow);">
+        <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin-bottom:10px;font-weight:600;">Ingress Surfaces</div>
+        <div class="flow-row">
+          <div class="flow-node ingress"><div class="flow-node-title">MCP Server</div><div class="flow-node-sub">Claude / IDE context</div></div>
+          <div class="flow-node ingress"><div class="flow-node-title">File Upload</div><div class="flow-node-sub">PDFs, decks, docs</div></div>
+          <div class="flow-node ingress"><div class="flow-node-title">Chrome Ext.</div><div class="flow-node-sub">Work artifact capture</div></div>
+          <div class="flow-node ingress"><div class="flow-node-title">Meeting Capture</div><div class="flow-node-sub">Transcripts, notes</div></div>
+          <div class="flow-node ingress"><div class="flow-node-title">Direct Work</div><div class="flow-node-sub">Briefs, edits, drafts</div></div>
+        </div>
+        <div class="flow-arrow-down">&#8595;</div>
+        <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin-bottom:10px;font-weight:600;">Birdie Processing</div>
+        <div class="flow-row">
+          <div class="flow-node birdie"><div class="flow-node-title">Signal Intake</div><div class="flow-node-sub">Parse &amp; extract</div></div>
+          <div class="flow-arrow">&#8594;</div>
+          <div class="flow-node birdie"><div class="flow-node-title">Score Signal</div><div class="flow-node-sub">4-dim strength model</div></div>
+          <div class="flow-arrow">&#8594;</div>
+          <div class="flow-node birdie"><div class="flow-node-title">Route Decision</div><div class="flow-node-sub">Scope + file targeting</div></div>
+          <div class="flow-arrow">&#8594;</div>
+          <div class="flow-node birdie"><div class="flow-node-title">Schema Match</div><div class="flow-node-sub">Fixed or emergent</div></div>
+        </div>
+        <div class="flow-arrow-down">&#8595;</div>
+        <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin-bottom:10px;font-weight:600;">Context Store (multi-scope write)</div>
+        <div class="flow-row">
+          <div class="flow-node scope" style="border-left-color:var(--accent-org);"><div class="flow-node-title" style="color:var(--accent-org);">org/</div><div class="flow-node-sub">brand-voice, positioning</div></div>
+          <div class="flow-node scope" style="border-left-color:var(--accent-team);"><div class="flow-node-title" style="color:var(--accent-team);">team/</div><div class="flow-node-sub">[client]-abm/*.md</div></div>
+          <div class="flow-node scope" style="border-left-color:var(--accent-personal);"><div class="flow-node-title" style="color:var(--accent-personal);">personal/</div><div class="flow-node-sub">role, preferences, projects</div></div>
+        </div>
+        <div class="flow-arrow-down">&#8595;</div>
+        <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin-bottom:10px;font-weight:600;">Context Consumption (Start)</div>
+        <div class="flow-row">
+          <div class="flow-node output"><div class="flow-node-title">Content Generation</div><div class="flow-node-sub">Briefs, copy, decks</div></div>
+          <div class="flow-node output"><div class="flow-node-title">Campaign Planning</div><div class="flow-node-sub">ICP-aligned programs</div></div>
+          <div class="flow-node output"><div class="flow-node-title">Strategy</div><div class="flow-node-sub">Positioning, messaging</div></div>
+          <div class="flow-node output"><div class="flow-node-title">Reporting</div><div class="flow-node-sub">Signals feed back in</div></div>
+        </div>
+        <div style="text-align:center;margin-top:16px;padding-top:16px;border-top:1px dashed var(--border);"><span style="font-size:11px;color:var(--pink-dark);font-weight:600;">&#8635; Output flows back as signal &mdash; completing the loop</span></div>
+      </div>
+    </div>
+
+    <div style="height:60px;"></div>
+  </div>
+
+  <div class="preview-panel" id="previewPanel">
+    <div class="preview-header">
+      <button class="preview-close" onclick="closePreview()">&times;</button>
+      <div class="preview-path" id="previewPath">file.md</div>
+      <div class="preview-badge" id="previewBadge">fixed</div>
+    </div>
+    <div class="preview-body md" id="previewBody"></div>
+  </div>
+</div>
+
+<button class="sidebar-toggle" id="sidebarToggle" onclick="document.getElementById('sidebar').classList.toggle('mobile-open')">&#9776;</button>
+
+<script>
+const people = [
+  { name: "Mads Toft", initials: "MT", role: "CEO + Sales", color: "#A33278", teams: ["hempel","nilfisk","falck","oterra","help","neotherm","roskilde","novonesis","tdc"], scope: "leadership" },
+  { name: "Nicolaj", initials: "NC", role: "Birdie Studio CEO", color: "#7c6bb5", teams: ["hempel","nilfisk","falck","oterra","help","neotherm","roskilde","novonesis","tdc"], scope: "leadership" },
+  { name: "Marius", initials: "MA", role: "AI Tech Developer + MarTech (CRM + MA)", color: "#5a8a66", teams: ["hempel","nilfisk","novonesis","tdc"], scope: "tech" },
+  { name: "Oliver", initials: "OL", role: "AI Lead Developer", color: "#2986c7", teams: ["hempel","nilfisk","novonesis","tdc"], scope: "tech" },
+  { name: "Jakob", initials: "JK", role: "AI Student Developer", color: "#3aa89f", teams: ["nilfisk","oterra"], scope: "tech" },
+  { name: "Sophie", initials: "SO", role: "Full Stack Developer", color: "#8b6bb5", teams: ["hempel","nilfisk","tdc"], scope: "tech" },
+  { name: "Nicole", initials: "NI", role: "Head of Operations", color: "#D159A3", teams: ["hempel","nilfisk","falck","oterra","help","neotherm","roskilde","novonesis","tdc"], scope: "operations" },
+  { name: "Jonas", initials: "JO", role: "Consultant", color: "#c78a28", teams: ["hempel","falck","help"], scope: "consulting" },
+  { name: "Jens", initials: "JE", role: "Consultant", color: "#b89a3a", teams: ["nilfisk","oterra","neotherm"], scope: "consulting" },
+  { name: "Laurits", initials: "LA", role: "Strategic Planner", color: "#4a9a6a", teams: ["hempel","nilfisk","novonesis","tdc"], scope: "strategy" },
+  { name: "Torben", initials: "TO", role: "Creative Lead & Copywriter", color: "#c76a4a", teams: ["hempel","nilfisk","falck","oterra","roskilde","novonesis"], scope: "creative" },
+  { name: "Asta", initials: "AS", role: "Copywriter", color: "#c75a8a", teams: ["help","neotherm","roskilde","tdc"], scope: "creative" },
+  { name: "Nutta", initials: "NU", role: "Art Director", color: "#b87a4a", teams: ["hempel","nilfisk","falck","novonesis"], scope: "creative" },
+  { name: "Sebastian", initials: "SE", role: "Art Director", color: "#6a7ab8", teams: ["oterra","help","neotherm","roskilde","tdc"], scope: "creative" },
+  { name: "Sebastian N", initials: "SN", role: "Software Tester", color: "#b86a5a", teams: ["hempel","nilfisk","tdc"], scope: "tech" },
+  { name: "David", initials: "DA", role: "AI Tech Developer", color: "#8a5a8a", teams: ["hempel","nilfisk","novonesis","oterra"], scope: "tech" },
+];
+
+const clients = [
+  { name: "Hempel", slug: "hempel", industry: "Coatings & chemicals", team: ["Mads","Nicolaj","Marius","Oliver","Sophie","Nicole","Jonas","Laurits","Torben","Nutta","Sebastian N","David"] },
+  { name: "Nilfisk", slug: "nilfisk", industry: "Professional cleaning", team: ["Mads","Nicolaj","Marius","Oliver","Jakob","Sophie","Nicole","Jens","Laurits","Torben","Nutta","Sebastian N","David"] },
+  { name: "Falck", slug: "falck", industry: "Emergency services & healthcare", team: ["Mads","Nicolaj","Nicole","Jonas","Torben","Nutta"] },
+  { name: "Oterra", slug: "oterra", industry: "Natural colors & food ingredients", team: ["Mads","Nicolaj","Jakob","Nicole","Jens","Torben","Sebastian","David"] },
+  { name: "Help Forsikring", slug: "help", industry: "Insurance", team: ["Mads","Nicolaj","Nicole","Jonas","Asta","Sebastian"] },
+  { name: "Neotherm", slug: "neotherm", industry: "Heating & energy", team: ["Mads","Nicolaj","Nicole","Jens","Asta","Sebastian"] },
+  { name: "Roskilde Dyrskue", slug: "roskilde", industry: "Agricultural exhibition", team: ["Mads","Nicolaj","Nicole","Torben","Asta","Sebastian"] },
+  { name: "Novonesis", slug: "novonesis", industry: "Biosolutions", team: ["Mads","Nicolaj","Marius","Oliver","Nicole","Laurits","Torben","Nutta","David"] },
+  { name: "TDC Erhverv", slug: "tdc", industry: "Telecommunications", team: ["Mads","Nicolaj","Marius","Oliver","Sophie","Nicole","Laurits","Asta","Sebastian","Sebastian N"] },
+];
+
+const teamFiles = [
+  { name: "_index.md", badge: "index", type: "idx" },
+  { name: "message-house.md", badge: "fixed", type: "fixed" },
+  { name: "icp.md", badge: "fixed", type: "fixed" },
+  { name: "campaign-brief.md", badge: "fixed", type: "fixed" },
+  { name: "briefs.md", badge: "fixed", type: "fixed" },
+  { name: "tasks.md", badge: "fixed", type: "fixed" },
+  { name: "timeline.md", badge: "fixed", type: "fixed" },
+  { name: "resources.md", badge: "fixed", type: "fixed" },
+  { name: "economy.md", badge: "fixed", type: "fixed" },
+  { name: "status.md", badge: "fixed", type: "fixed" },
+  { name: "decisions.md", badge: "fixed", type: "fixed" },
+];
+const personalFiles = [
+  { name: "_index.md", type: "idx" },
+  { name: "role.md", type: "fixed" },
+  { name: "preferences.md", type: "fixed" },
+  { name: "projects.md", type: "fixed" },
+  { name: "tasks.md", type: "fixed" },
+  { name: "availability.md", type: "fixed" },
+  { name: "skills.md", type: "fixed" },
+  { name: "goals.md", type: "fixed" },
+  { name: "network.md", type: "fixed" },
+  { name: "notes.md", type: "fixed" },
+  { name: "feedback.md", type: "fixed" },
+];
+const orgFiles = [
+  { name: "_index.md", type: "idx" },
+  { name: "brand-voice.md", type: "fixed" },
+  { name: "positioning.md", type: "fixed" },
+  { name: "values.md", type: "fixed" },
+  { name: "visual-identity.md", type: "fixed" },
+  { name: "services.md", type: "fixed" },
+  { name: "rate-card.md", type: "fixed" },
+  { name: "tone-guidelines.md", type: "emergent" },
+];
+
+const playbooks = [
+  { name: "ABM Playbook", slug: "abm", files: [
+    { name: "_index.md", type: "idx" },
+    { name: "phase-1-foundation.md", type: "fixed" },
+    { name: "phase-2-intelligence.md", type: "fixed" },
+    { name: "phase-3-messaging.md", type: "fixed" },
+    { name: "phase-4-content.md", type: "fixed" },
+    { name: "phase-5-activation.md", type: "fixed" },
+    { name: "phase-6-measurement.md", type: "fixed" },
+  ]},
+];
+
+// ── FILE CONTENT ──
+function getFileContent(p){const m=p.match(/^personal\/([^/]+)\/(.+)$/);if(m){const s=m[1],f=m[2],pr=people.find(x=>x.name.toLowerCase().replace(/\s+/g,'-')===s);if(pr)return getPersonalContent(pr,f);}if(p==='personal/_index.md')return personalIndexContent();if(p==='personal/role.md')return personalRoleGeneric();if(p==='personal/preferences.md')return personalPreferencesGeneric();if(p==='personal/projects.md')return personalProjectsGeneric();if(p==='personal/tasks.md')return personalTasksGeneric();if(p==='personal/availability.md')return personalAvailabilityGeneric();if(p==='personal/skills.md')return personalSkillsGeneric();if(p==='personal/goals.md')return personalGoalsGeneric();if(p==='personal/network.md')return personalNetworkGeneric();if(p==='personal/notes.md')return personalNotesGeneric();if(p==='personal/feedback.md')return personalFeedbackGeneric();if(p==='org/_index.md')return orgIndexContent();if(p==='org/brand-voice.md')return orgBrandVoice();if(p==='org/positioning.md')return orgPositioning();if(p==='org/values.md')return orgValues();if(p==='org/visual-identity.md')return orgVisualIdentity();if(p==='org/services.md')return orgServices();if(p==='org/rate-card.md')return orgRateCard();if(p==='org/tone-guidelines.md')return orgToneGuidelines();const pbm=p.match(/^org\/playbooks\/([^/]+)\/(.+)$/);if(pbm)return getPlaybookContent(pbm[1],pbm[2]);const tm=p.match(/^team\/([^/]+)-abm\/(.+)$/);if(tm){const s=tm[1],f=tm[2],cl=clients.find(c=>c.slug===s);if(cl)return getTeamContent(cl,f);}if(p==='team/_index.md')return teamIndexContent();return`<h1>File Not Found</h1><p>No preview for <code>${p}</code></p>`;}
+
+function personalIndexContent(){return`<h1>personal/ _index.md</h1><div class="meta-row"><span><span class="meta-label">Scope:</span> <span class="meta-val">Personal</span></span><span><span class="meta-label">Type:</span> <span class="meta-val">Navigation Index</span></span></div><h2>Purpose</h2><p>This scope contains what is true about <strong>you</strong> as an individual. Birdie uses this to personalize outputs, manage your workload, and route signals relevant to your role.</p><h2>Files</h2><ul><li><strong>role.md</strong> &mdash; Title, responsibilities, expertise</li><li><strong>preferences.md</strong> &mdash; Communication style, output format</li><li><strong>projects.md</strong> &mdash; Active projects and your role within each</li><li><strong>tasks.md</strong> &mdash; Aggregated personal task view across all programs <span class="tag tag-scope">&rarr; team/*/tasks.md</span></li><li><strong>availability.md</strong> &mdash; Capacity, hours, booking status <span class="tag tag-scope">&rarr; team/*/resources.md</span></li></ul><h2>Cross-References</h2><ul><li><code>tasks.md</code> is a <strong>read-only aggregation</strong> of tasks assigned to you across all <code>team/*/tasks.md</code> files</li><li><code>availability.md</code> is referenced by every <code>team/*/resources.md</code> for capacity planning</li><li><code>projects.md</code> links to each <code>team/[slug]-abm/_index.md</code></li></ul>`;}
+function personalRoleGeneric(){return`<h1>role.md</h1><div class="meta-row"><span><span class="meta-label">Schema:</span> <span class="meta-val">Fixed</span></span><span><span class="meta-label">Scope:</span> <span class="meta-val">Personal</span></span></div><h2>Schema Definition</h2><p>Captures the individual's professional identity. Birdie uses it to calibrate depth, tone, and focus.</p><h3>Required Fields</h3><table><tr><th>Field</th><th>Description</th></tr><tr><td><strong>title</strong></td><td>Official role title</td></tr><tr><td><strong>department</strong></td><td>Team or functional area</td></tr><tr><td><strong>responsibilities</strong></td><td>Key areas of ownership</td></tr><tr><td><strong>expertise</strong></td><td>Domain knowledge and skills</td></tr><tr><td><strong>hourly_rate</strong></td><td>Internal rate for economy tracking <span class="tag tag-scope">&rarr; org/rate-card.md</span></td></tr></table><h2>Cross-References</h2><ul><li>Rate pulled from <code>org/rate-card.md</code> based on role tier</li><li>Referenced by <code>team/*/resources.md</code> when calculating project costs</li></ul><blockquote>Click a person in the People tab to see their populated role.md</blockquote>`;}
+function personalPreferencesGeneric(){return`<h1>preferences.md</h1><div class="meta-row"><span><span class="meta-label">Schema:</span> <span class="meta-val">Fixed</span></span><span><span class="meta-label">Scope:</span> <span class="meta-val">Personal</span></span></div><h2>Schema Definition</h2><p>Captures work style and output preferences so Birdie can tailor deliverables without repeated instructions.</p><h3>Preference Categories</h3><table><tr><th>Category</th><th>Example Values</th></tr><tr><td><strong>output_format</strong></td><td>PDF, Google Slides, Markdown</td></tr><tr><td><strong>detail_level</strong></td><td>executive_summary, detailed</td></tr><tr><td><strong>communication_style</strong></td><td>direct, collaborative</td></tr><tr><td><strong>language</strong></td><td>DA, EN, mixed</td></tr></table>`;}
+function personalProjectsGeneric(){return`<h1>projects.md</h1><div class="meta-row"><span><span class="meta-label">Schema:</span> <span class="meta-val">Fixed</span></span><span><span class="meta-label">Scope:</span> <span class="meta-val">Personal</span></span></div><h2>Schema Definition</h2><p>Maps active project involvement. Each entry links to the corresponding <code>team/</code> program folder.</p><h3>Entry Structure</h3><table><tr><th>Field</th><th>Description</th></tr><tr><td><strong>program</strong></td><td>Link to <code>team/[slug]-abm/</code></td></tr><tr><td><strong>role_in_program</strong></td><td>What this person does</td></tr><tr><td><strong>status</strong></td><td>active, on_hold, completed</td></tr><tr><td><strong>time_allocation</strong></td><td>Approximate % of time <span class="tag tag-scope">&rarr; availability.md</span></td></tr></table><h2>Cross-References</h2><ul><li>Each program entry links to <code>team/[slug]-abm/_index.md</code></li><li>Time allocation should reconcile with <code>availability.md</code> total capacity</li><li>Status syncs with <code>team/[slug]-abm/status.md</code></li></ul>`;}
+function personalTasksGeneric(){return`<h1>tasks.md</h1><div class="meta-row"><span><span class="meta-label">Schema:</span> <span class="meta-val">Fixed</span></span><span><span class="meta-label">Scope:</span> <span class="meta-val">Personal</span></span><span><span class="meta-label">Type:</span> <span class="meta-val">Aggregated View</span></span></div><h2>Purpose</h2><p>A <strong>read-only aggregation</strong> of all tasks assigned to this person across every <code>team/*/tasks.md</code>. Birdie compiles this automatically &mdash; the source of truth is always the team-level file.</p><h3>Entry Structure</h3><table><tr><th>Field</th><th>Source</th></tr><tr><td><strong>task_id</strong></td><td>From <code>team/*/tasks.md</code></td></tr><tr><td><strong>program</strong></td><td>Which client program</td></tr><tr><td><strong>title</strong></td><td>Task title</td></tr><tr><td><strong>status</strong></td><td>backlog, in_progress, review, done</td></tr><tr><td><strong>due_date</strong></td><td>From <code>team/*/timeline.md</code></td></tr><tr><td><strong>linked_brief</strong></td><td>From <code>team/*/briefs.md</code></td></tr><tr><td><strong>hours_logged</strong></td><td>Feeds into <code>team/*/economy.md</code></td></tr></table><h2>Cross-References</h2><ul><li><strong>Source:</strong> <code>team/[slug]-abm/tasks.md</code> (each program's task board)</li><li><strong>Deadlines from:</strong> <code>team/[slug]-abm/timeline.md</code></li><li><strong>Briefs from:</strong> <code>team/[slug]-abm/briefs.md</code></li><li><strong>Hours feed into:</strong> <code>team/[slug]-abm/economy.md</code></li><li><strong>Capacity check:</strong> <code>personal/[you]/availability.md</code></li></ul>`;}
+function personalAvailabilityGeneric(){return`<h1>availability.md</h1><div class="meta-row"><span><span class="meta-label">Schema:</span> <span class="meta-val">Fixed</span></span><span><span class="meta-label">Scope:</span> <span class="meta-val">Personal</span></span></div><h2>Purpose</h2><p>Tracks this person's total capacity, current bookings across programs, and remaining availability. Referenced by every <code>team/*/resources.md</code> for allocation planning.</p><h3>Schema</h3><table><tr><th>Field</th><th>Description</th></tr><tr><td><strong>weekly_capacity</strong></td><td>Total available hours/week (e.g. 37h)</td></tr><tr><td><strong>bookings[]</strong></td><td>Per-program allocation from <code>team/*/resources.md</code></td></tr><tr><td><strong>remaining</strong></td><td>Calculated: capacity minus sum of bookings</td></tr><tr><td><strong>blocked_dates[]</strong></td><td>Holidays, leave, conferences</td></tr><tr><td><strong>rate_tier</strong></td><td>From <code>org/rate-card.md</code> &mdash; drives economy calculations</td></tr></table><h2>Cross-References</h2><ul><li><strong>Referenced by:</strong> every <code>team/*/resources.md</code> that books this person</li><li><strong>Feeds into:</strong> <code>team/*/economy.md</code> (hours &times; rate = cost)</li><li><strong>Rate from:</strong> <code>org/rate-card.md</code></li><li><strong>Reconciles with:</strong> <code>personal/[you]/projects.md</code> time_allocation</li></ul>`;}
+function personalSkillsGeneric(){return`<h1>skills.md</h1><div class="meta-row"><span><span class="meta-label">Schema:</span> <span class="meta-val">Fixed</span></span><span><span class="meta-label">Scope:</span> <span class="meta-val">Personal</span></span></div><h2>Purpose</h2><p>Competency matrix for this individual. Birdie uses this to match people to briefs, suggest reviewers, and flag skill gaps on programs.</p><h3>Schema</h3><table><tr><th>Field</th><th>Description</th></tr><tr><td><strong>tools[]</strong></td><td>Platforms and software (HubSpot, Figma, Claude, etc.)</td></tr><tr><td><strong>content_types[]</strong></td><td>What they can produce (articles, ads, landing pages, decks, code)</td></tr><tr><td><strong>domains[]</strong></td><td>Industry knowledge (SaaS, manufacturing, energy, etc.)</td></tr><tr><td><strong>languages[]</strong></td><td>DA, EN, DE + proficiency level</td></tr><tr><td><strong>certifications[]</strong></td><td>HubSpot, Google Ads, etc.</td></tr></table><h2>Cross-References</h2><ul><li><strong>Used by:</strong> <code>team/*/resources.md</code> (skill-matching for assignments)</li><li><strong>Used by:</strong> <code>team/*/briefs.md</code> (Birdie suggests best-fit assignee)</li><li><strong>Feeds into:</strong> <code>personal/[you]/goals.md</code> (skill gap identification)</li><li><strong>Context for:</strong> <code>personal/[you]/role.md</code> (expertise field)</li></ul>`;}
+function personalGoalsGeneric(){return`<h1>goals.md</h1><div class="meta-row"><span><span class="meta-label">Schema:</span> <span class="meta-val">Fixed</span></span><span><span class="meta-label">Scope:</span> <span class="meta-val">Personal</span></span></div><h2>Purpose</h2><p>Personal and professional objectives. Birdie uses this to route growth opportunities, suggest training, and align project assignments with development direction.</p><h3>Schema</h3><table><tr><th>Field</th><th>Description</th></tr><tr><td><strong>okrs[]</strong></td><td>Quarterly objectives &amp; key results</td></tr><tr><td><strong>development_areas[]</strong></td><td>Skills to build (from <code>skills.md</code> gaps)</td></tr><tr><td><strong>career_direction</strong></td><td>Where this person is heading</td></tr><tr><td><strong>certifications_target[]</strong></td><td>Certs to obtain this year</td></tr></table><h2>Cross-References</h2><ul><li><strong>Skill gaps from:</strong> <code>personal/[you]/skills.md</code></li><li><strong>Informs:</strong> <code>personal/[you]/projects.md</code> (stretch assignments)</li><li><strong>Reviewed via:</strong> <code>personal/[you]/feedback.md</code></li><li><strong>Aligned with:</strong> <code>org/values.md</code> (company direction)</li></ul>`;}
+function personalNetworkGeneric(){return`<h1>network.md</h1><div class="meta-row"><span><span class="meta-label">Schema:</span> <span class="meta-val">Fixed</span></span><span><span class="meta-label">Scope:</span> <span class="meta-val">Personal</span></span></div><h2>Purpose</h2><p>Key relationships and contacts this person maintains. Birdie uses this to identify warm paths into accounts, suggest meeting participants, and map relationship coverage.</p><h3>Schema</h3><table><tr><th>Field</th><th>Description</th></tr><tr><td><strong>client_contacts[]</strong></td><td>Named contacts at each client, with role + relationship strength</td></tr><tr><td><strong>industry_contacts[]</strong></td><td>Connections at events, associations, media</td></tr><tr><td><strong>partner_contacts[]</strong></td><td>Agency, technology, and channel partners</td></tr></table><h2>Cross-References</h2><ul><li><strong>Cross-refs:</strong> <code>team/*/stakeholder-map.md</code> (client-side contacts)</li><li><strong>Enriches:</strong> <code>team/*/icp.md</code> (warm account identification)</li><li><strong>Informs:</strong> <code>team/*/resources.md</code> (assign people who have relationships)</li><li><strong>Signal source:</strong> Relationship signals feed into Birdie's signal strength model (Source Authority dimension)</li></ul>`;}
+function personalNotesGeneric(){return`<h1>notes.md</h1><div class="meta-row"><span><span class="meta-label">Schema:</span> <span class="meta-val">Fixed</span></span><span><span class="meta-label">Scope:</span> <span class="meta-val">Personal</span></span><span><span class="meta-label">Type:</span> <span class="meta-val">Signal Intake</span></span></div><h2>Purpose</h2><p>Running log of observations, meeting notes, ideas, and captured signals. This is the <strong>primary ingress surface</strong> for ad-hoc input &mdash; the user dumps here, Birdie routes.</p><h3>How It Works</h3><ul><li>User writes raw notes (meeting takeaways, hallway conversations, ideas)</li><li>Birdie processes each entry through the <strong>signal strength model</strong></li><li>Relevant signals are <strong>routed to the right scope and file</strong> automatically</li><li>Original note stays here as audit trail with routing metadata</li></ul><h3>Entry Schema</h3><table><tr><th>Field</th><th>Description</th></tr><tr><td><strong>timestamp</strong></td><td>When captured</td></tr><tr><td><strong>raw_content</strong></td><td>The original note</td></tr><tr><td><strong>source</strong></td><td>meeting, call, observation, chrome_extension, idea</td></tr><tr><td><strong>routed_to[]</strong></td><td>Which files Birdie populated (filled by Birdie)</td></tr><tr><td><strong>signal_score</strong></td><td>Calculated signal strength (filled by Birdie)</td></tr></table><h2>Cross-References</h2><ul><li><strong>Routes to:</strong> any file in any scope (Birdie decides)</li><li><strong>Common targets:</strong> <code>team/*/decisions.md</code>, <code>team/*/stakeholder-map.md</code>, <code>team/*/pain-points.md</code></li><li><strong>Chrome extension captures:</strong> land here first, then route</li><li><strong>Meeting transcripts:</strong> processed and key signals extracted here</li></ul>`;}
+function personalFeedbackGeneric(){return`<h1>feedback.md</h1><div class="meta-row"><span><span class="meta-label">Schema:</span> <span class="meta-val">Fixed</span></span><span><span class="meta-label">Scope:</span> <span class="meta-val">Personal</span></span></div><h2>Purpose</h2><p>Captured feedback from peers, clients, and managers. Birdie uses this alongside <code>goals.md</code> and <code>skills.md</code> to suggest development priorities and celebrate strengths.</p><h3>Schema</h3><table><tr><th>Field</th><th>Description</th></tr><tr><td><strong>source</strong></td><td>Who gave the feedback (peer, client, manager)</td></tr><tr><td><strong>context</strong></td><td>Which program or deliverable</td></tr><tr><td><strong>type</strong></td><td>strength, growth_area, recognition</td></tr><tr><td><strong>content</strong></td><td>The feedback itself</td></tr><tr><td><strong>date</strong></td><td>When received</td></tr></table><h2>Cross-References</h2><ul><li><strong>Informs:</strong> <code>personal/[you]/goals.md</code> (development priorities)</li><li><strong>Validates:</strong> <code>personal/[you]/skills.md</code> (skill assessments)</li><li><strong>Context from:</strong> <code>team/*/status.md</code> (program performance)</li><li><strong>Client feedback links to:</strong> <code>team/*/decisions.md</code> (strategic impact)</li></ul>`;}
+
+function getPlaybookContent(slug,file){
+if(slug==='abm'&&file==='_index.md')return`<h1>ABM Playbook</h1><div class="meta-row"><span><span class="meta-label">Scope:</span> <span class="meta-val">Org / Playbooks</span></span><span><span class="meta-label">Phases:</span> <span class="meta-val">6</span></span><span><span class="meta-label">Version:</span> <span class="meta-val">2.1</span></span></div><h2>Purpose</h2><p>The BirdsAtFive ABM methodology. This playbook defines <strong>how we run every client program</strong>. Each phase produces specific context files in <code>team/[client]-abm/</code>. When a new client starts, Birdie scaffolds the team folder using this playbook as the template.</p><h2>Phases</h2><table><tr><th>#</th><th>Phase</th><th>Key Output Files</th></tr><tr><td>1</td><td><strong>Foundation &amp; Readiness</strong></td><td><code>_index.md</code>, <code>resources.md</code>, <code>economy.md</code></td></tr><tr><td>2</td><td><strong>Intelligence &amp; ICP</strong></td><td><code>icp.md</code>, <code>stakeholder-map.md</code>, <code>pain-points.md</code></td></tr><tr><td>3</td><td><strong>Message House &amp; Positioning</strong></td><td><code>message-house.md</code>, <code>decisions.md</code></td></tr><tr><td>4</td><td><strong>Content &amp; Creative</strong></td><td><code>briefs.md</code>, <code>tasks.md</code>, <code>timeline.md</code></td></tr><tr><td>5</td><td><strong>Activation &amp; Distribution</strong></td><td><code>campaign-brief.md</code>, <code>tasks.md</code>, <code>status.md</code></td></tr><tr><td>6</td><td><strong>Measurement &amp; Optimization</strong></td><td><code>status.md</code>, <code>economy.md</code>, <code>decisions.md</code></td></tr></table><h2>How Birdie Uses This</h2><ul><li>New client onboarding: Birdie scaffolds the <code>team/[client]-abm/</code> folder based on Phase 1</li><li>Phase progression: Birdie tracks which phase the program is in via <code>status.md</code></li><li>Quality gates: Each phase has exit criteria before the next phase begins</li><li>Org/brand context (brand-voice, positioning, rate-card) is loaded once and shared across all phases</li></ul><h2>Cross-References</h2><ul><li>Every <code>team/*/</code> program follows this playbook</li><li>Phase outputs map 1:1 to fixed schema files</li><li>Org-level files (<code>brand-voice.md</code>, <code>rate-card.md</code>, <code>services.md</code>) are inputs to multiple phases</li></ul>`;
+if(slug==='abm'&&file==='phase-1-foundation.md')return`<h1>Phase 1: Foundation &amp; Readiness</h1><div class="meta-row"><span><span class="meta-label">Playbook:</span> <span class="meta-val">ABM</span></span><span><span class="meta-label">Phase:</span> <span class="meta-val">1 of 6</span></span><span><span class="meta-label">Duration:</span> <span class="meta-val">1-2 weeks</span></span></div><h2>Objective</h2><p>Assess client readiness, assemble the team, set up the program structure, and align on scope, budget, and timeline.</p><h2>Key Activities</h2><ul><li>ABM readiness assessment (maturity, data, tech stack, organizational alignment)</li><li>Team assembly and role assignment</li><li>Program scoping and service selection</li><li>Budget and timeline definition</li><li>Context store scaffolding (Birdie creates the <code>team/[client]-abm/</code> folder)</li></ul><h2>Inputs</h2><table><tr><th>Input</th><th>Source</th></tr><tr><td>Service scope</td><td><code>org/services.md</code></td></tr><tr><td>Rate tiers</td><td><code>org/rate-card.md</code></td></tr><tr><td>Team availability</td><td><code>personal/*/availability.md</code></td></tr><tr><td>Team skills</td><td><code>personal/*/skills.md</code></td></tr></table><h2>Outputs (files created)</h2><table><tr><th>File</th><th>Description</th></tr><tr><td><code>team/[client]-abm/_index.md</code></td><td>Program navigation map</td></tr><tr><td><code>team/[client]-abm/resources.md</code></td><td>Team allocation and bookings</td></tr><tr><td><code>team/[client]-abm/economy.md</code></td><td>Budget framework</td></tr><tr><td><code>team/[client]-abm/timeline.md</code></td><td>Initial milestone plan</td></tr><tr><td><code>team/[client]-abm/status.md</code></td><td>Health dashboard (initialized)</td></tr></table><h2>Exit Criteria</h2><ul><li>Team assigned and booked in <code>resources.md</code></li><li>Budget approved and tracked in <code>economy.md</code></li><li>Timeline with Phase 2-6 milestones in <code>timeline.md</code></li><li>Client stakeholders identified (preliminary)</li></ul><h2>Next: Phase 2 &rarr; Intelligence &amp; ICP</h2>`;
+if(slug==='abm'&&file==='phase-2-intelligence.md')return`<h1>Phase 2: Intelligence &amp; ICP</h1><div class="meta-row"><span><span class="meta-label">Playbook:</span> <span class="meta-val">ABM</span></span><span><span class="meta-label">Phase:</span> <span class="meta-val">2 of 6</span></span><span><span class="meta-label">Duration:</span> <span class="meta-val">2-3 weeks</span></span></div><h2>Objective</h2><p>Build a deep understanding of the target market, define the Ideal Customer Profile, map decision-making units, and identify pain points through research and signal gathering.</p><h2>Key Activities</h2><ul><li>Market and competitive research</li><li>ICP definition (firmographics, behavioral signals, pain points)</li><li>Account selection and tiering (1:1, 1:few, 1:many)</li><li>Stakeholder mapping at target accounts</li><li>Pain point validation through signals</li></ul><h2>Inputs</h2><table><tr><th>Input</th><th>Source</th></tr><tr><td>Program scope</td><td><code>team/[client]-abm/_index.md</code></td></tr><tr><td>Team network contacts</td><td><code>personal/*/network.md</code></td></tr><tr><td>Industry context</td><td>Signal intake via <code>personal/*/notes.md</code></td></tr><tr><td>Existing client data</td><td>CRM, analytics (ingress via upload/MCP)</td></tr></table><h2>Outputs (files created/updated)</h2><table><tr><th>File</th><th>Description</th></tr><tr><td><code>team/[client]-abm/icp.md</code></td><td>Full ICP with segments, firmographics, signals</td></tr><tr><td><code>team/[client]-abm/stakeholder-map.md</code></td><td>[emergent] Key contacts and influence mapping</td></tr><tr><td><code>team/[client]-abm/pain-points.md</code></td><td>[emergent] Validated pain points with signal scores</td></tr><tr><td><code>team/[client]-abm/competitor-positioning.md</code></td><td>[emergent] Competitive landscape analysis</td></tr></table><h2>Exit Criteria</h2><ul><li>ICP defined with at least 2 segments in <code>icp.md</code></li><li>Account list tiered and approved</li><li>Minimum 3 validated pain points (signal score 65+)</li><li>Stakeholder map with at least 1 champion identified</li></ul><h2>&larr; Phase 1 | Phase 3 &rarr; Message House</h2>`;
+if(slug==='abm'&&file==='phase-3-messaging.md')return`<h1>Phase 3: Message House &amp; Positioning</h1><div class="meta-row"><span><span class="meta-label">Playbook:</span> <span class="meta-val">ABM</span></span><span><span class="meta-label">Phase:</span> <span class="meta-val">3 of 6</span></span><span><span class="meta-label">Duration:</span> <span class="meta-val">2-3 weeks</span></span></div><h2>Objective</h2><p>Develop the core messaging framework that all campaign content will be built on. Align messaging pillars with ICP pain points and differentiation.</p><h2>Key Activities</h2><ul><li>Message house workshop with client stakeholders</li><li>Brand promise and messaging pillar development</li><li>Proof point mapping per pillar</li><li>Tone calibration for target audience segments</li><li>Message testing and validation</li></ul><h2>Inputs</h2><table><tr><th>Input</th><th>Source</th></tr><tr><td>ICP and pain points</td><td><code>team/[client]-abm/icp.md</code>, <code>pain-points.md</code></td></tr><tr><td>Competitive positioning</td><td><code>team/[client]-abm/competitor-positioning.md</code></td></tr><tr><td>Brand voice</td><td><code>org/brand-voice.md</code></td></tr><tr><td>Tone guidelines</td><td><code>org/tone-guidelines.md</code></td></tr><tr><td>Stakeholder insights</td><td><code>team/[client]-abm/stakeholder-map.md</code></td></tr></table><h2>Outputs</h2><table><tr><th>File</th><th>Description</th></tr><tr><td><code>team/[client]-abm/message-house.md</code></td><td>Complete messaging framework with pillars, proof points, audience mapping</td></tr><tr><td><code>team/[client]-abm/decisions.md</code></td><td>Strategic messaging decisions logged with signal scores</td></tr></table><h2>Exit Criteria</h2><ul><li>Message house approved by client CMO/marketing lead</li><li>Minimum 3 messaging pillars with proof points</li><li>Each pillar mapped to at least 1 ICP segment</li><li>Tone calibrated and documented</li></ul><h2>&larr; Phase 2 | Phase 4 &rarr; Content &amp; Creative</h2>`;
+if(slug==='abm'&&file==='phase-4-content.md')return`<h1>Phase 4: Content &amp; Creative</h1><div class="meta-row"><span><span class="meta-label">Playbook:</span> <span class="meta-val">ABM</span></span><span><span class="meta-label">Phase:</span> <span class="meta-val">4 of 6</span></span><span><span class="meta-label">Duration:</span> <span class="meta-val">3-4 weeks</span></span></div><h2>Objective</h2><p>Produce all campaign assets &mdash; from thought leadership to ads to landing pages &mdash; following the message house, targeting ICP segments, and staying within budget and timeline.</p><h2>Key Activities</h2><ul><li>Brief creation for each deliverable</li><li>Task breakdown and assignment based on skills and availability</li><li>Content production (copy, design, development)</li><li>Review cycles with client</li><li>Asset finalization and handoff</li></ul><h2>Inputs</h2><table><tr><th>Input</th><th>Source</th></tr><tr><td>Messaging framework</td><td><code>team/[client]-abm/message-house.md</code></td></tr><tr><td>Target audience</td><td><code>team/[client]-abm/icp.md</code></td></tr><tr><td>Brand voice + tone</td><td><code>org/brand-voice.md</code>, <code>org/tone-guidelines.md</code></td></tr><tr><td>Visual identity</td><td><code>org/visual-identity.md</code></td></tr><tr><td>Team skills</td><td><code>personal/*/skills.md</code></td></tr><tr><td>Team availability</td><td><code>personal/*/availability.md</code></td></tr><tr><td>Budget</td><td><code>team/[client]-abm/economy.md</code></td></tr></table><h2>Outputs</h2><table><tr><th>File</th><th>Description</th></tr><tr><td><code>team/[client]-abm/briefs.md</code></td><td>All creative/content briefs with linked messaging + audience</td></tr><tr><td><code>team/[client]-abm/tasks.md</code></td><td>Task board populated from briefs, assigned to team members</td></tr><tr><td><code>team/[client]-abm/timeline.md</code></td><td>Updated with content production milestones</td></tr><tr><td><code>personal/*/tasks.md</code></td><td>Auto-aggregated personal task views</td></tr></table><h2>Exit Criteria</h2><ul><li>All briefs approved in <code>briefs.md</code></li><li>All tasks assigned with due dates in <code>tasks.md</code></li><li>Assets produced, reviewed, and approved</li><li>Budget on track per <code>economy.md</code></li></ul><h2>&larr; Phase 3 | Phase 5 &rarr; Activation</h2>`;
+if(slug==='abm'&&file==='phase-5-activation.md')return`<h1>Phase 5: Activation &amp; Distribution</h1><div class="meta-row"><span><span class="meta-label">Playbook:</span> <span class="meta-val">ABM</span></span><span><span class="meta-label">Phase:</span> <span class="meta-val">5 of 6</span></span><span><span class="meta-label">Duration:</span> <span class="meta-val">Ongoing (4-12 weeks)</span></span></div><h2>Objective</h2><p>Launch the ABM campaign across selected channels, manage tiered outreach, and monitor real-time engagement signals to optimize in-flight.</p><h2>Key Activities</h2><ul><li>Campaign setup across channels (LinkedIn, email, web, events)</li><li>Tier 1 personalized outreach launch</li><li>Tier 2-3 programmatic activation</li><li>Real-time signal monitoring and response</li><li>A/B testing and in-flight optimization</li></ul><h2>Inputs</h2><table><tr><th>Input</th><th>Source</th></tr><tr><td>Campaign objectives</td><td><code>team/[client]-abm/campaign-brief.md</code></td></tr><tr><td>Content assets</td><td>Produced in Phase 4 (<code>briefs.md</code> deliverables)</td></tr><tr><td>Account tiers</td><td><code>team/[client]-abm/icp.md</code></td></tr><tr><td>Channel strategy</td><td><code>team/[client]-abm/campaign-brief.md</code></td></tr><tr><td>MarTech config</td><td>CRM/MA setup (Marius / MarTech team)</td></tr></table><h2>Outputs</h2><table><tr><th>File</th><th>Description</th></tr><tr><td><code>team/[client]-abm/campaign-brief.md</code></td><td>Updated with live campaign status and channel performance</td></tr><tr><td><code>team/[client]-abm/tasks.md</code></td><td>Ongoing optimization tasks</td></tr><tr><td><code>team/[client]-abm/status.md</code></td><td>Real-time health dashboard with engagement metrics</td></tr><tr><td><code>team/[client]-abm/decisions.md</code></td><td>In-flight pivots logged with signal scores</td></tr></table><h2>Exit Criteria</h2><ul><li>All campaign tiers live and generating engagement data</li><li>Tracking and attribution confirmed working</li><li>First optimization cycle completed</li><li>Status dashboard showing real engagement metrics</li></ul><h2>&larr; Phase 4 | Phase 6 &rarr; Measurement</h2>`;
+if(slug==='abm'&&file==='phase-6-measurement.md')return`<h1>Phase 6: Measurement &amp; Optimization</h1><div class="meta-row"><span><span class="meta-label">Playbook:</span> <span class="meta-val">ABM</span></span><span><span class="meta-label">Phase:</span> <span class="meta-val">6 of 6</span></span><span><span class="meta-label">Duration:</span> <span class="meta-val">Ongoing + QBR cadence</span></span></div><h2>Objective</h2><p>Measure campaign impact against KPIs, calculate ROI, deliver insights to client, and feed learnings back into the context store for continuous improvement.</p><h2>Key Activities</h2><ul><li>Pipeline attribution and ROI analysis</li><li>Account engagement scoring and progression tracking</li><li>QBR preparation and delivery</li><li>Program economy reconciliation (budget vs. actual)</li><li>Learnings capture and methodology refinement</li><li>Decision on program continuation, expansion, or pivot</li></ul><h2>Inputs</h2><table><tr><th>Input</th><th>Source</th></tr><tr><td>Campaign performance</td><td><code>team/[client]-abm/status.md</code></td></tr><tr><td>Budget actuals</td><td><code>team/[client]-abm/economy.md</code></td></tr><tr><td>Task completion</td><td><code>team/[client]-abm/tasks.md</code></td></tr><tr><td>Timeline adherence</td><td><code>team/[client]-abm/timeline.md</code></td></tr><tr><td>Original KPIs</td><td><code>team/[client]-abm/campaign-brief.md</code></td></tr></table><h2>Outputs</h2><table><tr><th>File</th><th>Description</th></tr><tr><td><code>team/[client]-abm/status.md</code></td><td>Final performance report with KPI achievement</td></tr><tr><td><code>team/[client]-abm/economy.md</code></td><td>Final budget reconciliation and invoicing</td></tr><tr><td><code>team/[client]-abm/decisions.md</code></td><td>Strategic decisions on program future</td></tr><tr><td><code>personal/*/feedback.md</code></td><td>Client feedback captured and routed to team members</td></tr></table><h2>The Loop Closes</h2><p>Learnings from Phase 6 feed back into the <strong>signal strength model</strong>. Confirmed insights become high-confidence signals that improve future programs. Rejected hypotheses are logged as calibration data.</p><ul><li>Validated pain points &rarr; strengthen signal scores in <code>pain-points.md</code></li><li>Messaging performance &rarr; update <code>message-house.md</code> pillar priorities</li><li>ICP refinement &rarr; tighten segments in <code>icp.md</code></li><li>Methodology improvements &rarr; feed back into this playbook</li></ul><h2>&larr; Phase 5 | &circlearrowleft; Back to Phase 1 (next cycle)</h2>`;
+return`<h1>${file}</h1><p>No playbook content for <code>org/playbooks/${slug}/${file}</code></p>`;}
+
+
+function getPersonalContent(person,file){const cn=person.teams.map(s=>{const c=clients.find(cl=>cl.slug===s);return c?c.name:s;});const slug=person.name.toLowerCase().replace(/\s+/g,'-');if(file==='_index.md')return`<h1>personal/${slug}/_index.md</h1><div class="meta-row"><span><span class="meta-label">Owner:</span> <span class="meta-val">${person.name}</span></span><span><span class="meta-label">Role:</span> <span class="meta-val">${person.role}</span></span></div><h2>Files</h2><ul><li><strong>role.md</strong> &mdash; ${person.role}</li><li><strong>preferences.md</strong> &mdash; Work style and output preferences</li><li><strong>projects.md</strong> &mdash; ${person.teams.length} active programs</li></ul><h2>Active Programs</h2><ul>${cn.map(n=>`<li>${n}</li>`).join('')}</ul>`;
+if(file==='role.md')return`<h1>${person.name}</h1><div class="meta-row"><span><span class="meta-label">Title:</span> <span class="meta-val">${person.role}</span></span><span><span class="meta-label">Department:</span> <span class="meta-val">${person.scope.charAt(0).toUpperCase()+person.scope.slice(1)}</span></span><span><span class="meta-label">Programs:</span> <span class="meta-val">${person.teams.length} active</span></span></div><h2>Responsibilities</h2><ul>${person.scope==='leadership'?'<li>Strategic direction and client relationships</li><li>Revenue targets and growth planning</li><li>Team coordination across all programs</li>':''}${person.scope==='tech'?'<li>Technical architecture and implementation</li><li>AI/ML pipeline development</li><li>Platform reliability and performance</li>':''}${person.scope==='creative'?'<li>Creative concept development</li><li>Brand consistency across deliverables</li><li>Copy/visual quality assurance</li>':''}${person.scope==='consulting'?'<li>Client advisory and recommendations</li><li>Workshop facilitation</li><li>Program performance analysis</li>':''}${person.scope==='strategy'?'<li>Strategic planning and market analysis</li><li>Campaign architecture</li><li>Competitive intelligence synthesis</li>':''}${person.scope==='operations'?'<li>Process optimization and workflows</li><li>Cross-functional coordination</li><li>Resource allocation</li>':''}</ul><h2>Program Assignments</h2><ul>${cn.map(n=>`<li>${n}</li>`).join('')}</ul>`;
+if(file==='preferences.md')return`<h1>${person.name} &mdash; Preferences</h1><div class="meta-row"><span><span class="meta-label">Last updated:</span> <span class="meta-val">Mar 2026</span></span></div><h2>Output Format</h2><table><tr><th>Preference</th><th>Value</th></tr><tr><td>Default format</td><td>${person.scope==='creative'?'Google Slides / Figma':person.scope==='tech'?'Markdown / Code':'PDF / Google Slides'}</td></tr><tr><td>Detail level</td><td>${person.scope==='leadership'?'Executive summary':'Detailed'}</td></tr><tr><td>Language</td><td>DA + EN mixed</td></tr></table><h2>Communication</h2><ul><li><strong>Style:</strong> ${person.scope==='leadership'?'Direct, outcome-focused':person.scope==='creative'?'Visual, reference-driven':'Structured, documented'}</li><li><strong>Review cadence:</strong> ${person.scope==='leadership'?'Weekly sync':'Async'}</li></ul>`;
+if(file==='projects.md')return`<h1>${person.name} &mdash; Active Projects</h1><div class="meta-row"><span><span class="meta-label">Active programs:</span> <span class="meta-val">${person.teams.length}</span></span><span><span class="meta-label">Status:</span> <span class="tag tag-status">All active</span></span></div><h2>Program Assignments</h2><table><tr><th>Program</th><th>Role</th><th>Allocation</th><th>Status</th></tr>${person.teams.map(slug=>{const cl=clients.find(c=>c.slug===slug);const alloc=Math.round(80/person.teams.length);return`<tr><td><strong>${cl?cl.name:slug}</strong></td><td>${person.role}</td><td>~${alloc}%</td><td><span class="signal-badge signal-mid">Active</span></td></tr>`;}).join('')}</table><h2>Cross-References</h2><ul><li>Each row links to <code>team/[slug]-abm/_index.md</code></li><li>Allocation reconciles with <code onclick="openFile('personal/${slug}/availability.md');" style="cursor:pointer;color:var(--pink-dark)">availability.md</code></li></ul>`;
+if(file==='tasks.md'){const taskRows=person.teams.slice(0,4).map((tslug,i)=>{const cl=clients.find(c=>c.slug===tslug);const statuses=['in_progress','review','in_progress','backlog'];const titles=['Q2 campaign asset review','Messaging alignment deck','ICP segment analysis','Competitor brief update'];return`<tr><td>${cl?cl.name:tslug}</td><td>${titles[i]||'Task'}</td><td><span class="signal-badge ${statuses[i]==='in_progress'?'signal-mid':statuses[i]==='review'?'signal-high':'signal-low'}">${statuses[i]}</span></td><td>${12+i*3}h</td><td>Apr ${16+i*3}</td></tr>`;}).join('');return`<h1>${person.name} &mdash; Tasks</h1><div class="meta-row"><span><span class="meta-label">Open tasks:</span> <span class="meta-val">${Math.min(person.teams.length,4)}</span></span><span><span class="meta-label">Aggregated from:</span> <span class="meta-val">${person.teams.length} programs</span></span></div><h2>Active Tasks</h2><table><tr><th>Program</th><th>Task</th><th>Status</th><th>Hours</th><th>Due</th></tr>${taskRows}</table><h2>Cross-References</h2><ul><li><strong>Source:</strong> Each row comes from <code>team/[slug]-abm/tasks.md</code></li><li><strong>Hours feed into:</strong> <code>team/[slug]-abm/economy.md</code></li><li><strong>Deadlines from:</strong> <code>team/[slug]-abm/timeline.md</code></li><li><strong>Capacity:</strong> <code onclick="openFile('personal/${slug}/availability.md')" style="cursor:pointer;color:var(--pink-dark)">availability.md</code></li></ul>`;}
+if(file==='skills.md')return`<h1>${person.name} &mdash; Skills</h1><div class="meta-row"><span><span class="meta-label">Department:</span> <span class="meta-val">${person.scope.charAt(0).toUpperCase()+person.scope.slice(1)}</span></span></div><h2>Tools &amp; Platforms</h2><ul>${person.scope==='tech'?'<li>Claude API / Anthropic SDK</li><li>TypeScript / Next.js / React</li><li>Supabase / PostgreSQL</li><li>n8n / automation</li>':''}${person.scope==='creative'?'<li>Figma / Adobe Creative Suite</li><li>Copywriting frameworks</li><li>Brand identity systems</li>':''}${person.scope==='leadership'?'<li>Strategic planning tools</li><li>CRM (HubSpot)</li><li>Financial modeling</li>':''}${person.scope==='consulting'?'<li>Workshop facilitation</li><li>HubSpot / Marketo</li><li>Data analysis</li>':''}${person.scope==='strategy'?'<li>Competitive intelligence tools</li><li>Campaign architecture</li><li>Analytics platforms</li>':''}${person.scope==='operations'?'<li>Project management (Asana/Monday)</li><li>Resource planning</li><li>Process documentation</li>':''}</ul><h2>Content Types</h2><ul>${person.scope==='creative'?'<li>Ad copy, long-form articles, social posts, brand narratives</li><li>Visual concepts, ad creatives, brand assets, presentation design</li>':''}${person.scope==='tech'?'<li>Technical documentation, architecture specs, API guides</li>':''}${person.scope==='consulting'||person.scope==='strategy'?'<li>Strategy decks, workshop materials, analysis reports</li>':''}${person.scope==='leadership'?'<li>Pitch decks, proposals, executive summaries</li>':''}${person.scope==='operations'?'<li>Process docs, SOPs, status reports</li>':''}</ul><h2>Cross-References</h2><ul><li>Used by <code>team/*/resources.md</code> for skill-matching</li><li>Used by <code>team/*/briefs.md</code> to suggest best-fit assignee</li><li>Gaps inform <code>personal/${slug}/goals.md</code></li></ul>`;
+if(file==='goals.md')return`<h1>${person.name} &mdash; Goals</h1><div class="meta-row"><span><span class="meta-label">Period:</span> <span class="meta-val">Q2 2026</span></span></div><h2>OKRs</h2><table><tr><th>Objective</th><th>Key Result</th><th>Progress</th></tr><tr><td>Deepen ${person.scope} expertise</td><td>Complete 2 certifications</td><td><span class="signal-badge signal-mid">1/2</span></td></tr><tr><td>Contribute to ${cn.length>0?cn[0]:'program'} success</td><td>Deliver all tasks on time</td><td><span class="signal-badge signal-mid">On Track</span></td></tr></table><h2>Development Areas</h2><ul><li>Gap identified from <code>personal/${slug}/skills.md</code></li><li>Aligned with career direction</li></ul><h2>Cross-References</h2><ul><li>Skill gaps from <code>personal/${slug}/skills.md</code></li><li>Progress tracked via <code>personal/${slug}/feedback.md</code></li></ul>`;
+if(file==='network.md')return`<h1>${person.name} &mdash; Network</h1><div class="meta-row"><span><span class="meta-label">Client contacts:</span> <span class="meta-val">${person.teams.length*2}</span></span><span><span class="meta-label">Programs:</span> <span class="meta-val">${person.teams.length}</span></span></div><h2>Client Contacts</h2><table><tr><th>Client</th><th>Contact</th><th>Role</th><th>Relationship</th></tr>${person.teams.slice(0,4).map(tslug=>{const cl=clients.find(c=>c.slug===tslug);return`<tr><td>${cl?cl.name:tslug}</td><td>[Primary contact]</td><td>Marketing lead</td><td><span class="signal-badge signal-mid">Active</span></td></tr>`;}).join('')}</table><h2>Cross-References</h2><ul><li>Cross-refs <code>team/*/stakeholder-map.md</code></li><li>Enriches <code>team/*/icp.md</code> (warm paths)</li><li>Informs <code>team/*/resources.md</code> assignments</li></ul>`;
+if(file==='notes.md')return`<h1>${person.name} &mdash; Notes</h1><div class="meta-row"><span><span class="meta-label">Type:</span> <span class="meta-val">Signal Intake</span></span><span><span class="meta-label">Entries:</span> <span class="meta-val">12 this week</span></span></div><h2>Recent Entries</h2><table><tr><th>Time</th><th>Source</th><th>Note</th><th>Routed To</th><th>Score</th></tr><tr><td>Apr 15, 10:30</td><td>Meeting</td><td>"${cn[0]||'Client'} CMO wants to double down on sustainability messaging"</td><td><code>decisions.md</code></td><td><span class="signal-badge signal-high">88</span></td></tr><tr><td>Apr 14, 16:00</td><td>Chrome ext.</td><td>Competitor launched new campaign targeting same ICP</td><td><code>competitor-positioning.md</code></td><td><span class="signal-badge signal-mid">65</span></td></tr><tr><td>Apr 14, 09:15</td><td>Idea</td><td>"We should test video format for Tier 1 accounts"</td><td><code>briefs.md</code></td><td><span class="signal-badge signal-low">42</span></td></tr></table><h2>How It Works</h2><p>Dump anything here. Birdie processes, scores, and routes to the right files automatically.</p>`;
+if(file==='feedback.md')return`<h1>${person.name} &mdash; Feedback</h1><div class="meta-row"><span><span class="meta-label">Entries:</span> <span class="meta-val">4</span></span></div><h2>Recent Feedback</h2><table><tr><th>Date</th><th>From</th><th>Type</th><th>Context</th><th>Content</th></tr><tr><td>Apr 10</td><td>Client (${cn[0]||'Program'})</td><td><span class="signal-badge signal-high">Recognition</span></td><td>Q1 delivery</td><td>"Excellent strategic thinking on the messaging framework"</td></tr><tr><td>Mar 28</td><td>Peer</td><td><span class="signal-badge signal-mid">Growth</span></td><td>Internal</td><td>"Could improve handoff documentation between phases"</td></tr></table><h2>Cross-References</h2><ul><li>Informs <code>personal/${slug}/goals.md</code></li><li>Validates <code>personal/${slug}/skills.md</code></li></ul>`;
+if(file==='availability.md'){const totalBooked=person.teams.length*Math.round(80/person.teams.length);const bookingRows=person.teams.map(tslug=>{const cl=clients.find(c=>c.slug===tslug);const hrs=Math.round(37*(80/person.teams.length)/100);return`<tr><td>${cl?cl.name:tslug}</td><td>${hrs}h</td><td><span class="signal-badge signal-mid">Booked</span></td></tr>`;}).join('');return`<h1>${person.name} &mdash; Availability</h1><div class="meta-row"><span><span class="meta-label">Capacity:</span> <span class="meta-val">37h/week</span></span><span><span class="meta-label">Booked:</span> <span class="meta-val">~${Math.round(37*totalBooked/100)}h</span></span><span><span class="meta-label">Remaining:</span> <span class="meta-val">~${37-Math.round(37*totalBooked/100)}h</span></span></div><h2>Program Bookings</h2><table><tr><th>Program</th><th>Hours/Week</th><th>Status</th></tr>${bookingRows}</table><h2>Blocked Dates</h2><ul><li>Apr 18 &mdash; Company day</li><li>May 5-9 &mdash; Annual leave</li></ul><h2>Cross-References</h2><ul><li><strong>Referenced by:</strong> <code>team/*/resources.md</code> for each program</li><li><strong>Rate tier:</strong> Pulled from <code onclick="openFile('org/rate-card.md')" style="cursor:pointer;color:var(--pink-dark)">org/rate-card.md</code></li><li><strong>Reconciles with:</strong> <code onclick="openFile('personal/${slug}/projects.md')" style="cursor:pointer;color:var(--pink-dark)">projects.md</code> allocations</li></ul>`;}
+return`<h1>${file}</h1><p>No content template for this file.</p>`;}
+
+function teamIndexContent(){return`<h1>team/ _index.md</h1><div class="meta-row"><span><span class="meta-label">Scope:</span> <span class="meta-val">Team</span></span><span><span class="meta-label">Programs:</span> <span class="meta-val">${clients.length}</span></span></div><h2>Purpose</h2><p>All <strong>multiplayer activities</strong> &mdash; programs, campaigns, and initiatives. Each client program is a subfolder with its own context files.</p><h2>Active Programs</h2><table><tr><th>Program</th><th>Industry</th><th>Team Size</th></tr>${clients.map(c=>`<tr><td><strong>${c.name}</strong></td><td>${c.industry}</td><td>${c.team.length}</td></tr>`).join('')}</table><h2>Standard File Set (per program)</h2><table><tr><th>File</th><th>Category</th><th>Cross-References</th></tr><tr><td><strong>message-house.md</strong></td><td>Strategy</td><td>&rarr; org/brand-voice.md, briefs.md</td></tr><tr><td><strong>icp.md</strong></td><td>Strategy</td><td>&rarr; campaign-brief.md, briefs.md</td></tr><tr><td><strong>campaign-brief.md</strong></td><td>Strategy</td><td>&rarr; icp.md, timeline.md, economy.md</td></tr><tr><td><strong>briefs.md</strong></td><td>Execution</td><td>&rarr; message-house.md, icp.md, tasks.md</td></tr><tr><td><strong>tasks.md</strong></td><td>Execution</td><td>&rarr; briefs.md, resources.md, timeline.md, personal/*/tasks.md</td></tr><tr><td><strong>timeline.md</strong></td><td>Execution</td><td>&rarr; tasks.md, campaign-brief.md</td></tr><tr><td><strong>resources.md</strong></td><td>Operations</td><td>&rarr; personal/*/availability.md, economy.md, org/rate-card.md</td></tr><tr><td><strong>economy.md</strong></td><td>Operations</td><td>&rarr; resources.md, tasks.md, org/rate-card.md</td></tr><tr><td><strong>status.md</strong></td><td>Operations</td><td>&rarr; tasks.md, economy.md, timeline.md, resources.md</td></tr><tr><td><strong>decisions.md</strong></td><td>Governance</td><td>&rarr; all files (logs changes)</td></tr></table>`;}
+
+function getTeamContent(client,file){if(file==='_index.md')return`<h1>team/${client.slug}-abm/ _index.md</h1><div class="meta-row"><span><span class="meta-label">Client:</span> <span class="meta-val">${client.name}</span></span><span><span class="meta-label">Industry:</span> <span class="meta-val">${client.industry}</span></span><span><span class="meta-label">Team:</span> <span class="meta-val">${client.team.length} members</span></span></div><h2>Strategy</h2><ul><li><strong>message-house.md</strong> &mdash; Core messaging framework <span class="tag tag-scope">&rarr; org/brand-voice.md</span></li><li><strong>icp.md</strong> &mdash; Ideal customer profile and segmentation</li><li><strong>campaign-brief.md</strong> &mdash; Active campaign objectives and KPIs <span class="tag tag-scope">&rarr; timeline.md, economy.md</span></li></ul><h2>Execution</h2><ul><li><strong>briefs.md</strong> &mdash; Creative/content briefs for deliverables <span class="tag tag-scope">&rarr; message-house.md, icp.md, tasks.md</span></li><li><strong>tasks.md</strong> &mdash; Task board with assignments <span class="tag tag-scope">&rarr; personal/*/tasks.md, economy.md</span></li><li><strong>timeline.md</strong> &mdash; Milestones and deadlines <span class="tag tag-scope">&rarr; tasks.md, campaign-brief.md</span></li></ul><h2>Operations</h2><ul><li><strong>resources.md</strong> &mdash; Team allocation and bookings <span class="tag tag-scope">&rarr; personal/*/availability.md</span></li><li><strong>economy.md</strong> &mdash; Budget, spend, invoicing <span class="tag tag-scope">&rarr; resources.md, tasks.md, org/rate-card.md</span></li><li><strong>status.md</strong> &mdash; Program health dashboard <span class="tag tag-scope">&rarr; aggregates all above</span></li></ul><h2>Governance</h2><ul><li><strong>decisions.md</strong> &mdash; Key decisions with signal strength scores</li></ul><h2>Team</h2><ul>${client.team.map(n=>{const p=people.find(pp=>pp.name.startsWith(n));return`<li><strong>${p?p.name:n}</strong> &mdash; ${p?p.role:'Team member'}</li>`;}).join('')}</ul>`;
+if(file==='message-house.md')return`<h1>${client.name} &mdash; Message House</h1><div class="meta-row"><span><span class="meta-label">Client:</span> <span class="meta-val">${client.name}</span></span><span><span class="meta-label">Industry:</span> <span class="meta-val">${client.industry}</span></span><span><span class="signal-badge signal-high">Signal: 88</span></span></div><h2>Brand Promise</h2><p>${client.name} delivers industry-leading solutions in ${client.industry.toLowerCase()}, empowering customers to achieve operational excellence.</p><h2>Key Messages</h2><h3>Pillar 1: Innovation</h3><ul><li><strong>Core:</strong> "${client.name} leads through continuous innovation"</li><li><strong>Proof points:</strong> R&D investment, patent portfolio</li></ul><h3>Pillar 2: Sustainability</h3><ul><li><strong>Core:</strong> "Sustainable by design, not afterthought"</li><li><strong>Proof points:</strong> ESG targets, carbon reduction</li></ul><h3>Pillar 3: Partnership</h3><ul><li><strong>Core:</strong> "Your challenges are our roadmap"</li><li><strong>Proof points:</strong> Customer success stories</li></ul><hr><p><span class="tag tag-signal">Source: CMO workshop</span> <span class="tag tag-status">Approved</span></p>`;
+if(file==='icp.md')return`<h1>${client.name} &mdash; Ideal Customer Profile</h1><div class="meta-row"><span><span class="meta-label">Client:</span> <span class="meta-val">${client.name}</span></span><span><span class="signal-badge signal-mid">Signal: 74</span></span></div><h2>Target Segments</h2><table><tr><th>Segment</th><th>Size</th><th>Decision Maker</th><th>Priority</th></tr><tr><td>Enterprise</td><td>1000+</td><td>VP/C-level</td><td><span class="signal-badge signal-high">Primary</span></td></tr><tr><td>Mid-market</td><td>200-999</td><td>Director</td><td><span class="signal-badge signal-mid">Secondary</span></td></tr></table><h2>Firmographics</h2><ul><li><strong>Industries:</strong> ${client.industry} adjacent</li><li><strong>Geography:</strong> Nordics (primary), DACH (expansion)</li><li><strong>Revenue:</strong> DKK 100M+</li></ul><h2>Pain Points</h2><ul><li>Legacy systems limiting efficiency</li><li>Regulatory compliance complexity</li><li>Sustainability targets</li></ul>`;
+if(file==='decisions.md')return`<h1>${client.name} &mdash; Decision Log</h1><div class="meta-row"><span><span class="meta-label">Client:</span> <span class="meta-val">${client.name}</span></span><span><span class="meta-label">Entries:</span> <span class="meta-val">3</span></span></div><h2>2026-04-10 &mdash; Sustainability-led messaging</h2><p><span class="signal-badge signal-high">Signal: 88</span> <span class="tag tag-person">Approved by: Laurits</span></p><ul><li><strong>Decision:</strong> Lead with sustainability in Q2 content</li><li><strong>Rationale:</strong> CMO confirmed resonance. 3 independent sources.</li></ul><hr><h2>2026-03-22 &mdash; Expand ICP to DACH</h2><p><span class="signal-badge signal-mid">Signal: 72</span> <span class="tag tag-person">Approved by: Mads Toft</span></p><ul><li><strong>Decision:</strong> Add DACH as secondary geography</li><li><strong>Rationale:</strong> 28% inbound from DACH.</li></ul><hr><h2>2026-03-08 &mdash; Retire old tagline</h2><p><span class="signal-badge signal-mid">Signal: 68</span></p><ul><li><strong>Decision:</strong> Replace product-feature tagline with outcome language</li></ul>`;
+if(file==='campaign-brief.md')return`<h1>${client.name} &mdash; Campaign Brief</h1><div class="meta-row"><span><span class="meta-label">Campaign:</span> <span class="meta-val">Q2 2026 ABM</span></span><span><span class="meta-label">Status:</span> <span class="tag tag-status">Active</span></span></div><h2>Objective</h2><p>Drive qualified pipeline among enterprise accounts in ${client.industry.toLowerCase()} through targeted ABM.</p><h2>Target Accounts</h2><ul><li><strong>Tier 1 (1:1):</strong> 5 named accounts</li><li><strong>Tier 2 (1:few):</strong> 15 accounts</li><li><strong>Tier 3 (1:many):</strong> 80 accounts</li></ul><h2>Channels</h2><table><tr><th>Channel</th><th>Role</th><th>Priority</th></tr><tr><td>LinkedIn</td><td>Awareness + engagement</td><td><span class="signal-badge signal-high">Primary</span></td></tr><tr><td>Email</td><td>Nurture + conversion</td><td><span class="signal-badge signal-high">Primary</span></td></tr><tr><td>Landing pages</td><td>Conversion</td><td><span class="signal-badge signal-mid">Secondary</span></td></tr></table><h2>KPIs</h2><ul><li>Tier 1 engagement: >40%</li><li>MQAs: 8+</li><li>Pipeline: DKK 2M+</li></ul>`;
+if(file==='briefs.md'){return`<h1>${client.name} &mdash; Creative Briefs</h1><div class="meta-row"><span><span class="meta-label">Client:</span> <span class="meta-val">${client.name}</span></span><span><span class="meta-label">Active briefs:</span> <span class="meta-val">3</span></span></div><h2>Active Briefs</h2><table><tr><th>Brief ID</th><th>Title</th><th>Type</th><th>Status</th><th>Assignee</th></tr><tr><td>B-001</td><td>Q2 Thought Leadership Article</td><td>Content</td><td><span class="signal-badge signal-mid">In Progress</span></td><td>${client.team[client.team.length>5?5:0]||'TBD'}</td></tr><tr><td>B-002</td><td>LinkedIn Ad Set &mdash; Sustainability</td><td>Creative</td><td><span class="signal-badge signal-low">Briefed</span></td><td>${client.team[client.team.length>6?6:1]||'TBD'}</td></tr><tr><td>B-003</td><td>Account-Specific Landing Page (Tier 1)</td><td>Web</td><td><span class="signal-badge signal-high">In Review</span></td><td>${client.team[2]||'TBD'}</td></tr></table><h3>Brief Template Fields</h3><table><tr><th>Field</th><th>Source</th></tr><tr><td><strong>objective</strong></td><td>From <code>campaign-brief.md</code></td></tr><tr><td><strong>target_audience</strong></td><td>From <code>icp.md</code> segment</td></tr><tr><td><strong>key_messages</strong></td><td>From <code>message-house.md</code> pillar</td></tr><tr><td><strong>tone</strong></td><td>From <code>org/brand-voice.md</code> + <code>org/tone-guidelines.md</code></td></tr><tr><td><strong>linked_tasks[]</strong></td><td>Auto-created in <code>tasks.md</code></td></tr><tr><td><strong>budget</strong></td><td>From <code>economy.md</code> line item</td></tr><tr><td><strong>deadline</strong></td><td>From <code>timeline.md</code> milestone</td></tr></table><h2>Cross-References</h2><ul><li><strong>Messaging:</strong> <code>message-house.md</code> (pillar selection per brief)</li><li><strong>Audience:</strong> <code>icp.md</code> (segment targeting)</li><li><strong>Tone:</strong> <code>org/brand-voice.md</code> + <code>org/tone-guidelines.md</code></li><li><strong>Tasks:</strong> Each brief auto-generates tasks in <code>tasks.md</code></li><li><strong>Budget:</strong> Brief cost tracked in <code>economy.md</code></li><li><strong>Deadline:</strong> Linked to <code>timeline.md</code> milestone</li></ul>`;}
+if(file==='tasks.md'){return`<h1>${client.name} &mdash; Task Board</h1><div class="meta-row"><span><span class="meta-label">Client:</span> <span class="meta-val">${client.name}</span></span><span><span class="meta-label">Open:</span> <span class="meta-val">8</span></span><span><span class="meta-label">In review:</span> <span class="meta-val">2</span></span><span><span class="meta-label">Done (this sprint):</span> <span class="meta-val">5</span></span></div><h2>Active Tasks</h2><table><tr><th>ID</th><th>Task</th><th>Brief</th><th>Assignee</th><th>Status</th><th>Hours</th><th>Due</th></tr><tr><td>T-014</td><td>Draft thought leadership article</td><td>B-001</td><td>${client.team[client.team.length>5?5:0]}</td><td><span class="signal-badge signal-mid">In Progress</span></td><td>12h</td><td>Apr 22</td></tr><tr><td>T-015</td><td>Design LinkedIn ad creatives</td><td>B-002</td><td>${client.team[client.team.length>6?6:1]}</td><td><span class="signal-badge signal-low">Backlog</span></td><td>8h</td><td>Apr 28</td></tr><tr><td>T-016</td><td>Review landing page copy</td><td>B-003</td><td>${client.team[2]}</td><td><span class="signal-badge signal-high">In Review</span></td><td>4h</td><td>Apr 18</td></tr><tr><td>T-017</td><td>Set up campaign tracking</td><td>&mdash;</td><td>${client.team[3]||client.team[0]}</td><td><span class="signal-badge signal-mid">In Progress</span></td><td>6h</td><td>Apr 20</td></tr></table><h3>Task Schema</h3><table><tr><th>Field</th><th>Cross-Reference</th></tr><tr><td><strong>assignee</strong></td><td>&rarr; <code>personal/[person]/tasks.md</code> (aggregated view)</td></tr><tr><td><strong>linked_brief</strong></td><td>&rarr; <code>briefs.md</code> (brief ID)</td></tr><tr><td><strong>hours_logged</strong></td><td>&rarr; <code>economy.md</code> (billable tracking)</td></tr><tr><td><strong>due_date</strong></td><td>&rarr; <code>timeline.md</code> (milestone alignment)</td></tr><tr><td><strong>resources</strong></td><td>&rarr; <code>resources.md</code> (capacity check)</td></tr></table><h2>Cross-References</h2><ul><li><strong>Assignee &rarr;</strong> <code>personal/[person]/tasks.md</code> (auto-aggregated)</li><li><strong>Brief &rarr;</strong> <code>briefs.md</code> (linked deliverable)</li><li><strong>Hours &rarr;</strong> <code>economy.md</code> (cost = hours &times; rate from <code>org/rate-card.md</code>)</li><li><strong>Capacity &rarr;</strong> <code>resources.md</code> + <code>personal/[person]/availability.md</code></li><li><strong>Deadlines &rarr;</strong> <code>timeline.md</code></li></ul>`;}
+if(file==='timeline.md'){return`<h1>${client.name} &mdash; Timeline</h1><div class="meta-row"><span><span class="meta-label">Client:</span> <span class="meta-val">${client.name}</span></span><span><span class="meta-label">Campaign:</span> <span class="meta-val">Q2 2026</span></span></div><h2>Milestones</h2><table><tr><th>Date</th><th>Milestone</th><th>Linked To</th><th>Status</th></tr><tr><td>Apr 1</td><td>Campaign kickoff</td><td><code>campaign-brief.md</code></td><td><span class="signal-badge signal-high">Done</span></td></tr><tr><td>Apr 15</td><td>All briefs approved</td><td><code>briefs.md</code></td><td><span class="signal-badge signal-mid">In Progress</span></td></tr><tr><td>Apr 22</td><td>Content production complete</td><td><code>tasks.md</code> T-014, T-015</td><td><span class="signal-badge signal-low">Upcoming</span></td></tr><tr><td>Apr 30</td><td>Tier 1 campaign live</td><td><code>campaign-brief.md</code></td><td><span class="signal-badge signal-low">Upcoming</span></td></tr><tr><td>May 31</td><td>Full program live</td><td><code>campaign-brief.md</code></td><td><span class="signal-badge signal-low">Upcoming</span></td></tr><tr><td>Jun 30</td><td>QBR + pipeline review</td><td><code>status.md</code>, <code>economy.md</code></td><td><span class="signal-badge signal-low">Planned</span></td></tr></table><h2>Cross-References</h2><ul><li><strong>Milestones link to:</strong> <code>campaign-brief.md</code> (objectives), <code>briefs.md</code> (deliverables), <code>tasks.md</code> (work items)</li><li><strong>Deadline source for:</strong> <code>tasks.md</code> due dates, <code>personal/*/tasks.md</code></li><li><strong>Review triggers:</strong> <code>status.md</code> health check at each milestone</li></ul>`;}
+if(file==='resources.md'){return`<h1>${client.name} &mdash; Resource Allocation</h1><div class="meta-row"><span><span class="meta-label">Client:</span> <span class="meta-val">${client.name}</span></span><span><span class="meta-label">Team size:</span> <span class="meta-val">${client.team.length}</span></span><span><span class="meta-label">Total booked:</span> <span class="meta-val">${client.team.length*6}h/week</span></span></div><h2>Current Allocation</h2><table><tr><th>Person</th><th>Role</th><th>Hours/Week</th><th>Rate Tier</th><th>Weekly Cost</th></tr>${client.team.slice(0,8).map(name=>{const p=people.find(pp=>pp.name.startsWith(name));const hrs=p&&(p.scope==='leadership'?3:p.scope==='operations'?4:p.scope==='consulting'||p.scope==='strategy'?8:p.scope==='creative'?10:6);const tier=p&&(p.scope==='leadership'?'Director':p.scope==='consulting'||p.scope==='strategy'?'Senior':'Standard');const rate=tier==='Director'?1800:tier==='Senior'?1400:1100;return`<tr><td><strong>${p?p.name:name}</strong></td><td>${p?p.role:'Team'}</td><td>${hrs}h</td><td>${tier} <span class="tag tag-scope">&rarr; org/rate-card.md</span></td><td>DKK ${(hrs*rate).toLocaleString()}</td></tr>`;}).join('')}</table><h2>Schema</h2><table><tr><th>Field</th><th>Cross-Reference</th></tr><tr><td><strong>person</strong></td><td>&rarr; <code>personal/[person]/availability.md</code> (capacity check)</td></tr><tr><td><strong>rate_tier</strong></td><td>&rarr; <code>org/rate-card.md</code> (hourly rates)</td></tr><tr><td><strong>hours</strong></td><td>&rarr; <code>economy.md</code> (cost roll-up)</td></tr><tr><td><strong>tasks</strong></td><td>&rarr; <code>tasks.md</code> (what they're working on)</td></tr></table><h2>Cross-References</h2><ul><li><strong>Capacity:</strong> Each person's <code>personal/[person]/availability.md</code></li><li><strong>Rates:</strong> <code>org/rate-card.md</code> (per tier)</li><li><strong>Cost roll-up:</strong> <code>economy.md</code> (hours &times; rate)</li><li><strong>Workload:</strong> <code>tasks.md</code> (assigned tasks per person)</li></ul>`;}
+if(file==='economy.md'){const weeklyTotal=client.team.length*6*1200;return`<h1>${client.name} &mdash; Project Economy</h1><div class="meta-row"><span><span class="meta-label">Client:</span> <span class="meta-val">${client.name}</span></span><span><span class="meta-label">Q2 Budget:</span> <span class="meta-val">DKK ${(weeklyTotal*12).toLocaleString()}</span></span><span><span class="meta-label">Spent:</span> <span class="meta-val">DKK ${Math.round(weeklyTotal*4.5).toLocaleString()}</span></span></div><h2>Budget Overview</h2><table><tr><th>Category</th><th>Budget</th><th>Spent</th><th>Remaining</th><th>Source</th></tr><tr><td>Strategy &amp; Planning</td><td>DKK ${Math.round(weeklyTotal*3).toLocaleString()}</td><td>DKK ${Math.round(weeklyTotal*2.5).toLocaleString()}</td><td>DKK ${Math.round(weeklyTotal*0.5).toLocaleString()}</td><td><code>resources.md</code> (Senior + Director tiers)</td></tr><tr><td>Content Production</td><td>DKK ${Math.round(weeklyTotal*5).toLocaleString()}</td><td>DKK ${Math.round(weeklyTotal*1.5).toLocaleString()}</td><td>DKK ${Math.round(weeklyTotal*3.5).toLocaleString()}</td><td><code>tasks.md</code> (logged hours &times; rates)</td></tr><tr><td>Creative &amp; Design</td><td>DKK ${Math.round(weeklyTotal*3).toLocaleString()}</td><td>DKK ${Math.round(weeklyTotal*0.5).toLocaleString()}</td><td>DKK ${Math.round(weeklyTotal*2.5).toLocaleString()}</td><td><code>briefs.md</code> (brief-level budgets)</td></tr><tr><td>Media &amp; Tools</td><td>DKK 50,000</td><td>DKK 12,000</td><td>DKK 38,000</td><td>External (not in resources.md)</td></tr></table><h2>Invoicing</h2><table><tr><th>Invoice</th><th>Period</th><th>Amount</th><th>Status</th></tr><tr><td>INV-2026-041</td><td>Mar 2026</td><td>DKK ${Math.round(weeklyTotal*4).toLocaleString()}</td><td><span class="signal-badge signal-high">Paid</span></td></tr><tr><td>INV-2026-042</td><td>Apr 1-15</td><td>DKK ${Math.round(weeklyTotal*2).toLocaleString()}</td><td><span class="signal-badge signal-mid">Sent</span></td></tr></table><h2>How Cost is Calculated</h2><p><code>hours (from tasks.md) &times; rate (from org/rate-card.md via resources.md) = cost</code></p><h2>Cross-References</h2><ul><li><strong>Hours:</strong> <code>tasks.md</code> (hours_logged per task)</li><li><strong>Rates:</strong> <code>resources.md</code> &rarr; <code>org/rate-card.md</code></li><li><strong>Brief budgets:</strong> <code>briefs.md</code> (per-brief cost allocation)</li><li><strong>Campaign budget:</strong> <code>campaign-brief.md</code> (total program budget)</li><li><strong>Health check:</strong> <code>status.md</code> (burn rate vs. timeline)</li></ul>`;}
+if(file==='status.md'){return`<h1>${client.name} &mdash; Program Status</h1><div class="meta-row"><span><span class="meta-label">Client:</span> <span class="meta-val">${client.name}</span></span><span><span class="meta-label">Period:</span> <span class="meta-val">Apr 2026</span></span><span><span class="meta-label">Health:</span> <span class="signal-badge signal-mid">On Track</span></span></div><h2>Health Dashboard</h2><p>Aggregated from all program files. Updated automatically by Birdie.</p><table><tr><th>Dimension</th><th>Status</th><th>Source</th><th>Detail</th></tr><tr><td><strong>Timeline</strong></td><td><span class="signal-badge signal-mid">On Track</span></td><td><code>timeline.md</code></td><td>2 of 6 milestones complete</td></tr><tr><td><strong>Tasks</strong></td><td><span class="signal-badge signal-mid">On Track</span></td><td><code>tasks.md</code></td><td>8 open, 2 in review, 5 done</td></tr><tr><td><strong>Budget</strong></td><td><span class="signal-badge signal-high">Under Budget</span></td><td><code>economy.md</code></td><td>38% of Q2 budget spent at 50% of quarter</td></tr><tr><td><strong>Resources</strong></td><td><span class="signal-badge signal-low">Watch</span></td><td><code>resources.md</code></td><td>Creative team at 90% capacity</td></tr><tr><td><strong>Briefs</strong></td><td><span class="signal-badge signal-mid">On Track</span></td><td><code>briefs.md</code></td><td>1 of 3 briefs in review</td></tr><tr><td><strong>Decisions</strong></td><td><span class="signal-badge signal-high">Current</span></td><td><code>decisions.md</code></td><td>Last decision: Apr 10</td></tr></table><h2>Risks &amp; Flags</h2><ul><li><span class="signal-badge signal-low">Watch</span> Creative team capacity tight &mdash; may need to extend Tier 2 launch (<code>resources.md</code> + <code>personal/*/availability.md</code>)</li><li><span class="signal-badge signal-mid">Info</span> Client QBR moved to Jun 15 (was Jun 30) &mdash; need to accelerate reporting (<code>timeline.md</code>)</li></ul><h2>Cross-References</h2><ul><li><strong>This file is read-only</strong> &mdash; Birdie compiles it from all other program files</li><li><strong>Sources:</strong> <code>timeline.md</code>, <code>tasks.md</code>, <code>economy.md</code>, <code>resources.md</code>, <code>briefs.md</code>, <code>decisions.md</code></li><li><strong>Surfaced to:</strong> <code>personal/[leads]/tasks.md</code> as status flags</li></ul>`;}
+if(file==='competitor-positioning.md')return`<h1>${client.name} &mdash; Competitor Positioning</h1><div class="meta-row"><span><span class="meta-label">Schema:</span> <span class="tag tag-person">Emergent</span></span><span><span class="signal-badge signal-mid">Signal: 71</span></span></div><blockquote>Suggested by Birdie after detecting repeated competitor signals. Approved by Laurits.</blockquote><h2>Competitive Landscape</h2><table><tr><th>Competitor</th><th>Positioning</th><th>Strength</th><th>Weakness</th></tr><tr><td><strong>Competitor A</strong></td><td>Price leader</td><td>Scale</td><td>Innovation lag</td></tr><tr><td><strong>Competitor B</strong></td><td>Premium</td><td>Brand</td><td>Limited reach</td></tr><tr><td><strong>Competitor C</strong></td><td>Tech-first</td><td>R&D</td><td>CX</td></tr></table>`;
+if(file==='meeting-cadence.md')return`<h1>${client.name} &mdash; Meeting Cadence</h1><div class="meta-row"><span><span class="meta-label">Schema:</span> <span class="tag tag-person">Emergent</span></span></div><blockquote>Birdie detected recurring meeting patterns.</blockquote><h2>Regular Meetings</h2><table><tr><th>Meeting</th><th>Frequency</th><th>Attendees</th></tr><tr><td>Status sync</td><td>Weekly (Tue)</td><td>Core team</td></tr><tr><td>Strategy review</td><td>Bi-weekly</td><td>Leads + client</td></tr><tr><td>Creative review</td><td>Monthly</td><td>Creative + client</td></tr><tr><td>QBR</td><td>Quarterly</td><td>Full team + exec</td></tr></table>`;
+if(file==='stakeholder-map.md')return`<h1>${client.name} &mdash; Stakeholder Map</h1><div class="meta-row"><span><span class="meta-label">Schema:</span> <span class="tag tag-person">Emergent</span></span></div><blockquote>Emerged from workshop notes and meeting transcripts.</blockquote><h2>Key Stakeholders</h2><table><tr><th>Title</th><th>Influence</th><th>Stance</th></tr><tr><td>CMO</td><td><span class="signal-badge signal-high">Champion</span></td><td>Strong advocate</td></tr><tr><td>VP Sales</td><td><span class="signal-badge signal-mid">Influencer</span></td><td>Supportive</td></tr><tr><td>CFO</td><td><span class="signal-badge signal-high">Decision Maker</span></td><td>Needs ROI proof</td></tr></table>`;
+if(file==='pain-points.md')return`<h1>${client.name} &mdash; Pain Points</h1><div class="meta-row"><span><span class="meta-label">Schema:</span> <span class="tag tag-person">Emergent</span></span></div><blockquote>Aggregated from multiple signals. Each includes a strength score.</blockquote><h2>Validated Pain Points</h2><ul><li><span class="signal-badge signal-high">92</span> <strong>Fragmented martech stack</strong> &mdash; 5 sources confirm.</li><li><span class="signal-badge signal-mid">74</span> <strong>Content production bottleneck</strong> &mdash; 3 sources.</li><li><span class="signal-badge signal-mid">68</span> <strong>Attribution complexity</strong> &mdash; 2 sources.</li><li><span class="signal-badge signal-low">52</span> <strong>Internal alignment gaps</strong> &mdash; Single source.</li></ul>`;
+return`<h1>${file}</h1><p>No content for <code>team/${client.slug}-abm/${file}</code></p>`;}
+
+function orgIndexContent(){return`<h1>org/ _index.md</h1><div class="meta-row"><span><span class="meta-label">Scope:</span> <span class="meta-val">Organization</span></span><span><span class="meta-label">Company:</span> <span class="meta-val">BirdsAtFive</span></span></div><h2>Purpose</h2><p>What is true about the <strong>company and brand</strong>. Shared across all team members and programs. Includes operational foundations like rate cards and service definitions.</p><h2>Brand &amp; Identity</h2><ul><li><strong>brand-voice.md</strong> &mdash; Voice, tone, language guidelines <span class="tag tag-scope">&rarr; team/*/briefs.md</span></li><li><strong>positioning.md</strong> &mdash; Market positioning and value proposition</li><li><strong>values.md</strong> &mdash; Company values and cultural principles</li><li><strong>visual-identity.md</strong> &mdash; Visual brand guidelines</li></ul><h2>Operations</h2><ul><li><strong>services.md</strong> &mdash; Service lines and deliverable types <span class="tag tag-scope">&rarr; team/*/campaign-brief.md</span></li><li><strong>rate-card.md</strong> &mdash; Hourly/day rates per tier <span class="tag tag-scope">&rarr; team/*/resources.md, economy.md</span></li></ul><h2>Emergent</h2><ul><li><strong>tone-guidelines.md</strong> &mdash; <em>[emergent]</em> Tone-of-voice rules per context <span class="tag tag-scope">&rarr; team/*/briefs.md</span></li></ul>`;}
+function orgBrandVoice(){return`<h1>BirdsAtFive &mdash; Brand Voice</h1><div class="meta-row"><span><span class="meta-label">Scope:</span> <span class="meta-val">Org</span></span><span><span class="meta-label">Schema:</span> <span class="meta-val">Fixed</span></span></div><h2>Voice Attributes</h2><table><tr><th>Attribute</th><th>We are</th><th>We are not</th></tr><tr><td><strong>Confident</strong></td><td>Expert, assured, direct</td><td>Arrogant, dismissive</td></tr><tr><td><strong>Sharp</strong></td><td>Precise, clear, insightful</td><td>Academic, jargon-heavy</td></tr><tr><td><strong>Human</strong></td><td>Warm, approachable, real</td><td>Casual, sloppy</td></tr><tr><td><strong>Progressive</strong></td><td>Forward-thinking, curious</td><td>Buzzword-heavy</td></tr></table><h2>Language Rules</h2><ul><li>Danish for Nordic content, English for international</li><li>Avoid passive voice</li><li>No unnecessary superlatives</li><li>Use specific numbers over vague claims</li></ul>`;}
+function orgPositioning(){return`<h1>BirdsAtFive &mdash; Positioning</h1><div class="meta-row"><span><span class="meta-label">Scope:</span> <span class="meta-val">Org</span></span><span><span class="meta-label">Schema:</span> <span class="meta-val">Fixed</span></span></div><h2>Positioning Statement</h2><p><strong>For</strong> B2B companies in the Nordics and beyond,<br><strong>who need</strong> to connect marketing to measurable pipeline impact,<br><strong>BirdsAtFive is</strong> the AI-first ABM studio<br><strong>that</strong> combines strategic consulting with AI-powered execution<br><strong>unlike</strong> traditional agencies that separate strategy from delivery.</p><h2>Key Differentiators</h2><ul><li><strong>AI-native:</strong> Birdie makes every output smarter</li><li><strong>Full-funnel:</strong> Strategy through execution</li><li><strong>Signal-driven:</strong> Every decision backed by scored evidence</li><li><strong>Nordic roots, global ambition</strong></li></ul>`;}
+function orgValues(){return`<h1>BirdsAtFive &mdash; Values</h1><div class="meta-row"><span><span class="meta-label">Scope:</span> <span class="meta-val">Org</span></span></div><h2>Core Values</h2><h3>1. Signal Over Noise</h3><p>Evidence-based decisions. Every recommendation backed by scored signals.</p><h3>2. Context is Everything</h3><p>Great work starts with deep understanding. We invest in context before output.</p><h3>3. Ship and Learn</h3><p>Ship, measure, iterate. Our methodology is always under development.</p><h3>4. Multiplayer by Default</h3><p>Strategy, creative, and tech collaborate in real-time.</p><h3>5. Own the Outcome</h3><p>We stay accountable through the full funnel.</p>`;}
+function orgVisualIdentity(){return`<h1>BirdsAtFive &mdash; Visual Identity</h1><div class="meta-row"><span><span class="meta-label">Scope:</span> <span class="meta-val">Org</span></span><span><span class="meta-label">Schema:</span> <span class="meta-val">Fixed</span></span></div><h2>Color Palette</h2><table><tr><th>Name</th><th>Value</th><th>Usage</th></tr><tr><td><strong>Birdie Pink</strong></td><td><code>#F58ED3</code></td><td>Primary accent, CTAs</td></tr><tr><td><strong>Deep Purple</strong></td><td><code>#380527</code></td><td>Text, headings</td></tr><tr><td><strong>Maroon</strong></td><td><code>#A33278</code></td><td>Secondary accent</td></tr><tr><td><strong>Signal Green</strong></td><td><code>#5a8a66</code></td><td>Success states</td></tr><tr><td><strong>Light Pink</strong></td><td><code>#FDECF8</code></td><td>Secondary backgrounds</td></tr></table><h2>Typography</h2><ul><li><strong>Headings:</strong> Rubik, 600-700 weight</li><li><strong>Body:</strong> Rubik, 400-500 weight</li><li><strong>Code:</strong> JetBrains Mono</li></ul><h2>Design Principles</h2><ul><li>Light-first, clean, approachable</li><li>Generous whitespace and rounded corners</li><li>Signal strength always visible via color-coded badges</li><li>Pink accents for brand identity</li></ul>`;}
+function orgServices(){return`<h1>BirdsAtFive &mdash; Services</h1><div class="meta-row"><span><span class="meta-label">Scope:</span> <span class="meta-val">Org</span></span><span><span class="meta-label">Schema:</span> <span class="meta-val">Fixed</span></span></div><h2>Service Lines</h2><table><tr><th>Service</th><th>Description</th><th>Typical Deliverables</th></tr><tr><td><strong>ABM Strategy</strong></td><td>ICP definition, account selection, channel architecture</td><td>Strategy deck, ICP framework, channel plan</td></tr><tr><td><strong>Message House Development</strong></td><td>Positioning, messaging pillars, proof points</td><td>Message house document, brand narrative</td></tr><tr><td><strong>Content Production</strong></td><td>Thought leadership, campaign assets, social content</td><td>Articles, ads, landing pages, video scripts</td></tr><tr><td><strong>Creative &amp; Design</strong></td><td>Visual identity, campaign design, art direction</td><td>Ad creatives, templates, brand assets</td></tr><tr><td><strong>MarTech &amp; Automation</strong></td><td>CRM setup, MA workflows, tracking, attribution</td><td>HubSpot/Marketo config, dashboards</td></tr><tr><td><strong>AI Integration</strong></td><td>Birdie implementation, context architecture, signal setup</td><td>Context store, signal routing, Birdie config</td></tr></table><h2>Cross-References</h2><ul><li>Service lines map to <strong>rate tiers</strong> in <code>org/rate-card.md</code></li><li>Each <code>team/*/campaign-brief.md</code> references which services are in scope</li><li>Used by <code>team/*/economy.md</code> for budget category breakdown</li></ul>`;}
+function orgRateCard(){return`<h1>BirdsAtFive &mdash; Rate Card</h1><div class="meta-row"><span><span class="meta-label">Scope:</span> <span class="meta-val">Org</span></span><span><span class="meta-label">Schema:</span> <span class="meta-val">Fixed</span></span><span><span class="meta-label">Effective:</span> <span class="meta-val">Jan 2026</span></span></div><h2>Purpose</h2><p>Central rate definitions used by all program <code>economy.md</code> and <code>resources.md</code> files. Single source of truth for cost calculations.</p><h2>Rate Tiers</h2><table><tr><th>Tier</th><th>Roles</th><th>Hourly Rate (DKK)</th><th>Day Rate (DKK)</th></tr><tr><td><strong>Director</strong></td><td>CEO, Studio CEO, Head of Operations</td><td>1,800</td><td>13,500</td></tr><tr><td><strong>Senior</strong></td><td>Lead Developer, Strategic Planner, Creative Lead, Consultants</td><td>1,400</td><td>10,500</td></tr><tr><td><strong>Standard</strong></td><td>Developers, Copywriters, Art Directors, Testers</td><td>1,100</td><td>8,250</td></tr><tr><td><strong>Junior</strong></td><td>Student Developers, Interns</td><td>750</td><td>5,625</td></tr></table><h2>Calculation Model</h2><p><code>Cost = hours_logged (from team/*/tasks.md) &times; hourly_rate (from tier above)</code></p><p>Rate tiers are assigned per person in <code>personal/[person]/availability.md</code> and used by <code>team/*/resources.md</code> for weekly cost projections.</p><h2>Cross-References</h2><ul><li><strong>Referenced by:</strong> every <code>team/*/resources.md</code> (allocation costing)</li><li><strong>Referenced by:</strong> every <code>team/*/economy.md</code> (budget calculations)</li><li><strong>Referenced by:</strong> every <code>personal/*/availability.md</code> (rate_tier field)</li><li><strong>Tier assignment:</strong> Based on <code>personal/[person]/role.md</code> title</li></ul>`;}
+function orgToneGuidelines(){return`<h1>BirdsAtFive &mdash; Tone Guidelines</h1><div class="meta-row"><span><span class="meta-label">Schema:</span> <span class="tag tag-person">Emergent</span></span><span><span class="signal-badge signal-mid">Signal: 72</span></span></div><blockquote>Suggested by Birdie after recurring tone calibration questions. Approved by Torben.</blockquote><h2>Tone by Context</h2><table><tr><th>Context</th><th>Tone</th><th>Example</th></tr><tr><td>Pitch decks</td><td>Confident + visionary</td><td>"We don't predict the future &mdash; we build the systems that shape it."</td></tr><tr><td>Case studies</td><td>Evidence-driven + warm</td><td>"Hempel saw 3.2x pipeline increase in 90 days."</td></tr><tr><td>Social posts</td><td>Sharp + provocative</td><td>"Your ABM strategy isn't broken. Your context layer is."</td></tr><tr><td>Client emails</td><td>Professional + human</td><td>"Here's what we learned from last week's data."</td></tr></table><h2>Anti-Patterns</h2><ul><li>Never: "leverage synergies" or "cutting-edge paradigm"</li><li>Never: unsubstantiated claims</li><li>Never: AI-generated text not reviewed against brand-voice.md</li></ul>`;}
+
+// ── SIDEBAR TREE (order: org, team, personal) ──
+let allTreeFiles=[];
+function buildSidebarTree(){const tree=document.getElementById('sidebarTree');allTreeFiles=[];let html='';
+// ORG first
+html+=`<div class="tree-scope" data-scope="org"><div class="tree-scope-header scope-o" onclick="toggleScope(this)"><span class="arrow open">&#9654;</span> org/</div><div class="tree-children" id="tree-org">`;
+orgFiles.forEach(f=>{const path=`org/${f.name}`;allTreeFiles.push({path});html+=`<div class="tree-file" data-path="${path}" onclick="openFile('${path}')" ${f.type==='emergent'?'style="opacity:0.6;"':''}><span class="file-icon ${f.type}">${f.type==='idx'?'&#9670;':f.type==='emergent'?'&#9671;':'&#9632;'}</span> ${f.name}</div>`;});
+// Playbooks subfolder under org
+html+=`<div class="tree-folder-header" onclick="toggleFolder(this)" style="padding-left:14px;"><span class="arrow">&#9654;</span><span class="folder-icon">&#128193;</span> playbooks/</div><div class="tree-children collapsed">`;
+playbooks.forEach(pb=>{html+=`<div class="tree-folder-header" onclick="toggleFolder(this)"><span class="arrow">&#9654;</span><span class="folder-icon">&#128193;</span> ${pb.slug}/</div><div class="tree-children collapsed">`;
+pb.files.forEach(f=>{const path=`org/playbooks/${pb.slug}/${f.name}`;allTreeFiles.push({path});html+=`<div class="tree-file tree-file-l2" data-path="${path}" onclick="openFile('${path}')"><span class="file-icon ${f.type}">${f.type==='idx'?'&#9670;':'&#9632;'}</span> ${f.name}</div>`;});
+html+=`</div>`;});
+html+=`</div>`;
+html+=`</div></div>`;
+// TEAM second
+html+=`<div class="tree-scope" data-scope="team"><div class="tree-scope-header scope-t" onclick="toggleScope(this)"><span class="arrow open">&#9654;</span> team/</div><div class="tree-children" id="tree-team">`;
+const tip='team/_index.md';allTreeFiles.push({path:tip});
+html+=`<div class="tree-file" data-path="${tip}" onclick="openFile('${tip}')"><span class="file-icon idx">&#9670;</span> _index.md</div>`;
+clients.forEach(c=>{html+=`<div class="tree-folder-header" onclick="toggleFolder(this)"><span class="arrow">&#9654;</span><span class="folder-icon">&#128193;</span> ${c.slug}-abm/</div><div class="tree-children collapsed">`;
+const ef=['competitor-positioning.md','meeting-cadence.md','stakeholder-map.md','pain-points.md'];
+teamFiles.forEach(f=>{const path=`team/${c.slug}-abm/${f.name}`;allTreeFiles.push({path});html+=`<div class="tree-file tree-file-l2" data-path="${path}" onclick="openFile('${path}')"><span class="file-icon ${f.type}">${f.type==='idx'?'&#9670;':'&#9632;'}</span> ${f.name}</div>`;});
+ef.forEach(name=>{const path=`team/${c.slug}-abm/${name}`;allTreeFiles.push({path});html+=`<div class="tree-file tree-file-l2" data-path="${path}" onclick="openFile('${path}')" style="opacity:0.6;"><span class="file-icon emergent">&#9671;</span> ${name}</div>`;});
+html+=`</div>`;});
+html+=`</div></div>`;
+// PERSONAL third
+html+=`<div class="tree-scope" data-scope="personal"><div class="tree-scope-header scope-p" onclick="toggleScope(this)"><span class="arrow open">&#9654;</span> personal/</div><div class="tree-children" id="tree-personal">`;
+people.forEach(p=>{const slug=p.name.toLowerCase().replace(/\s+/g,'-');html+=`<div class="tree-folder-header" onclick="toggleFolder(this)"><span class="arrow">&#9654;</span><span class="folder-icon">&#128193;</span> ${slug}/</div><div class="tree-children collapsed">`;
+personalFiles.forEach(f=>{const path=`personal/${slug}/${f.name}`;allTreeFiles.push({path});html+=`<div class="tree-file tree-file-l2" data-path="${path}" onclick="openFile('${path}')"><span class="file-icon ${f.type}">${f.type==='idx'?'&#9670;':'&#9632;'}</span> ${f.name}</div>`;});
+html+=`</div>`;});
+html+=`</div></div>`;
+tree.innerHTML=html;document.getElementById('statFiles').textContent=allTreeFiles.length;}
+
+function toggleScope(h){const a=h.querySelector('.arrow'),c=h.nextElementSibling;if(c.classList.contains('collapsed')){c.classList.remove('collapsed');c.style.maxHeight=c.scrollHeight+'px';a.classList.add('open');}else{c.classList.add('collapsed');a.classList.remove('open');}}
+function toggleFolder(h){const a=h.querySelector('.arrow'),c=h.nextElementSibling;if(c.classList.contains('collapsed')){c.classList.remove('collapsed');c.style.maxHeight=c.scrollHeight+'px';a.classList.add('open');let p=c.parentElement;while(p&&p.classList.contains('tree-children')){p.style.maxHeight=p.scrollHeight+c.scrollHeight+'px';p=p.parentElement;}}else{c.classList.add('collapsed');a.classList.remove('open');}}
+function filterTree(q){q=q.toLowerCase().trim();document.querySelectorAll('.tree-file').forEach(el=>{const p=el.dataset.path||'';el.style.display=(!q||p.toLowerCase().includes(q))?'':'none';});document.querySelectorAll('.tree-folder-header').forEach(el=>{if(!q){el.style.display='';return;}const n=el.nextElementSibling;const has=n&&n.querySelector('.tree-file:not([style*="display: none"])');el.style.display=has?'':'none';if(has&&n.classList.contains('collapsed')){n.classList.remove('collapsed');n.style.maxHeight=n.scrollHeight+'px';el.querySelector('.arrow').classList.add('open');}});}
+
+// ── PREVIEW PANEL ──
+function openFile(path){const panel=document.getElementById('previewPanel'),pathEl=document.getElementById('previewPath'),badgeEl=document.getElementById('previewBadge'),bodyEl=document.getElementById('previewBody');
+pathEl.textContent=path;bodyEl.innerHTML=getFileContent(path);
+if(path.includes('_index.md')){badgeEl.textContent='INDEX';badgeEl.style.background='var(--blue-dim)';badgeEl.style.color='var(--blue)';}
+else if(path.includes('competitor-')||path.includes('meeting-cadence')||path.includes('stakeholder-')||path.includes('pain-points')||path.includes('tone-guidelines')){badgeEl.textContent='EMERGENT';badgeEl.style.background='var(--purple-dim)';badgeEl.style.color='var(--purple)';}
+else{badgeEl.textContent='FIXED';badgeEl.style.background='var(--green-dim)';badgeEl.style.color='var(--green)';}
+panel.classList.add('open');document.getElementById('mainContent').classList.add('pushed');
+document.querySelectorAll('.tree-file').forEach(el=>el.classList.remove('active'));
+const t=document.querySelector(`.tree-file[data-path="${path}"]`);if(t){t.classList.add('active');t.scrollIntoView({block:'nearest',behavior:'smooth'});}}
+function closePreview(){document.getElementById('previewPanel').classList.remove('open');document.getElementById('mainContent').classList.remove('pushed');document.querySelectorAll('.tree-file').forEach(el=>el.classList.remove('active'));}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closePreview();});
+
+// ── TABS + FEATURES ──
+document.querySelectorAll('.nav-tab').forEach(tab=>{tab.addEventListener('click',()=>switchTab(tab.dataset.tab));});
+function switchTab(id){document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));document.querySelector(`[data-tab="${id}"]`).classList.add('active');document.getElementById(id).classList.add('active');}
+
+function renderPeople(){document.getElementById('peopleGrid').innerHTML=people.map((p,i)=>`<div class="person-card" onclick="togglePerson(${i})"><div class="person-avatar" style="background:${p.color}15;color:${p.color};">${p.initials}</div><div class="person-name">${p.name}</div><div class="person-role">${p.role}</div><div class="person-scopes"><div class="person-scope-dot dot-org active"></div><div class="person-scope-dot dot-team ${p.teams.length>0?'active':''}"></div><div class="person-scope-dot dot-personal active"></div></div></div>`).join('');}
+
+function togglePerson(idx){const cards=document.querySelectorAll('.person-card'),panel=document.getElementById('personDetail'),card=cards[idx],was=card.classList.contains('active');cards.forEach(c=>c.classList.remove('active'));if(was){panel.classList.remove('visible');return;}card.classList.add('active');const p=people[idx],slug=p.name.toLowerCase().replace(/\s+/g,'-'),cn=p.teams.map(s=>{const c=clients.find(cl=>cl.slug===s);return c?c.name:s;});
+panel.innerHTML=`<h4 style="display:flex;align-items:center;gap:10px;"><span style="display:inline-flex;width:28px;height:28px;border-radius:50%;background:${p.color}15;color:${p.color};align-items:center;justify-content:center;font-size:12px;font-weight:700;">${p.initials}</span>${p.name}'s Context Structure</h4><div class="detail-context-list"><div class="detail-context-item dci-org"><h5>org/</h5><ul><li style="cursor:pointer" onclick="openFile('org/brand-voice.md')">brand-voice.md</li><li style="cursor:pointer" onclick="openFile('org/positioning.md')">positioning.md</li><li style="cursor:pointer" onclick="openFile('org/values.md')">values.md</li><li style="cursor:pointer" onclick="openFile('org/visual-identity.md')">visual-identity.md</li></ul></div><div class="detail-context-item dci-team"><h5>team/ programs (${p.teams.length})</h5><ul>${cn.map(n=>`<li>${n}</li>`).join('')}</ul></div><div class="detail-context-item dci-personal"><h5>personal/${slug}/</h5><ul><li style="cursor:pointer" onclick="openFile('personal/${slug}/_index.md')">_index.md</li><li style="cursor:pointer" onclick="openFile('personal/${slug}/role.md')">role.md &mdash; ${p.role}</li><li style="cursor:pointer" onclick="openFile('personal/${slug}/preferences.md')">preferences.md</li><li style="cursor:pointer" onclick="openFile('personal/${slug}/projects.md')">projects.md &mdash; ${p.teams.length} active</li></ul></div></div>`;
+panel.classList.add('visible');}
+
+function renderClients(){document.getElementById('clientGrid').innerHTML=clients.map((c,i)=>`<div class="client-card" onclick="toggleClient(${i})"><div class="client-name">${c.name}</div><div style="font-size:11px;color:var(--text-dim);margin-bottom:3px;">${c.industry}</div><div class="client-path">team/${c.slug}-abm/</div><div style="display:flex;gap:3px;flex-wrap:wrap;margin-bottom:10px;">${c.team.map(name=>{const p=people.find(pp=>pp.name.startsWith(name));return p?`<span style="display:inline-flex;width:22px;height:22px;border-radius:50%;background:${p.color}15;color:${p.color};align-items:center;justify-content:center;font-size:8px;font-weight:700;" title="${p.name}">${p.initials}</span>`:''}).join('')}</div><div class="client-files"><div class="file-tree" style="margin-top:6px;padding-top:10px;border-top:1px solid var(--border);">${teamFiles.map(f=>`<div class="file-tree-item ${f.type==='idx'?'index-file':'schema-file'}" onclick="event.stopPropagation();openFile('team/${c.slug}-abm/${f.name}')"><span class="icon">${f.type==='idx'?'&#9670;':'&#9632;'}</span> ${f.name} <span class="file-badge badge-${f.badge}">${f.badge}</span></div>`).join('')}<div class="file-tree-item emergent-file" style="opacity:0.6;" onclick="event.stopPropagation();openFile('team/${c.slug}-abm/competitor-positioning.md')"><span class="icon">&#9671;</span> competitor-positioning.md <span class="file-badge badge-emergent">emergent</span></div></div></div></div>`).join('');}
+
+function toggleClient(idx){const cards=document.querySelectorAll('.client-card'),card=cards[idx],was=card.classList.contains('active');cards.forEach(c=>c.classList.remove('active'));if(!was)card.classList.add('active');}
+
+function renderScopesDetail(){document.getElementById('personalScopePeople').innerHTML=people.map(p=>{const slug=p.name.toLowerCase().replace(/\s+/g,'-');return`<div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 10px;font-size:11px;display:flex;align-items:center;gap:7px;cursor:pointer;" onclick="openFile('personal/${slug}/_index.md')"><span style="display:inline-flex;width:22px;height:22px;border-radius:50%;background:${p.color}15;color:${p.color};align-items:center;justify-content:center;font-size:9px;font-weight:700;flex-shrink:0;">${p.initials}</span><span style="color:var(--text);font-weight:500;">${p.name}</span></div>`;}).join('');
+document.getElementById('teamScopeTree').innerHTML=`<div class="file-tree-item index-file" onclick="openFile('team/_index.md')"><span class="icon">&#9670;</span> team/_index.md <span class="file-badge badge-index">index</span></div>${clients.map(c=>`<div class="file-tree-item folder"><span class="icon">&#9654;</span> team/${c.slug}-abm/ <span style="margin-left:auto;font-size:10px;color:var(--text-muted);">${c.team.length} members</span></div><div class="file-tree-indent">${teamFiles.map(f=>`<div class="file-tree-item ${f.type==='idx'?'index-file':'schema-file'}" onclick="openFile('team/${c.slug}-abm/${f.name}')"><span class="icon">${f.type==='idx'?'&#9670;':'&#9632;'}</span> ${f.name} <span class="file-badge badge-${f.badge}">${f.badge}</span></div>`).join('')}</div>`).join('')}`;}
+
+function updateSignal(){const a=+document.getElementById('slider-authority').value,c=+document.getElementById('slider-corroboration').value,r=+document.getElementById('slider-recency').value,s=+document.getElementById('slider-specificity').value;document.getElementById('val-authority').textContent=a;document.getElementById('val-corroboration').textContent=c;document.getElementById('val-recency').textContent=r;document.getElementById('val-specificity').textContent=s;const raw=(a*0.35)+(c*0.30)+(r*0.20)+(s*0.15),score=Math.round((raw/5)*100);const se=document.getElementById('signalScore'),be=document.getElementById('signalBar'),ae=document.getElementById('signalAction');se.textContent=score;be.style.width=score+'%';document.querySelectorAll('.threshold-card').forEach(t=>t.classList.remove('active-threshold'));let txt,cls,col,idx;if(score<=40){txt='Log, do not surface';cls='action-log';col='var(--purple)';idx=0;}else if(score<=65){txt='Surface as low-priority suggestion';cls='action-low';col='var(--amber)';idx=1;}else if(score<=85){txt='Surface as recommendation';cls='action-recommend';col='var(--green)';idx=2;}else{txt='High-confidence — flag proactively';cls='action-proactive';col='var(--maroon)';idx=3;}se.style.color=col;be.style.background=col;ae.textContent=txt;ae.className='signal-action '+cls;document.querySelectorAll('.threshold-card')[idx].classList.add('active-threshold');}
+
+function playRouteDemo(){const demos=[{text:'"After the Hempel workshop, their CMO confirmed sustainability messaging resonates."',o:{show:true,note:"Revision flag"},t:{show:true,note:"CMO confirmed"},p:{show:true,note:"Workshop notes"}},{text:'"I prefer strategy decks as PDF. Always include competitive context."',o:{show:false,note:""},t:{show:false,note:""},p:{show:true,note:"Prefs updated"}},{text:'"Nilfisk shared new brand guidelines. Tone shifting more technical."',o:{show:false,note:""},t:{show:true,note:"Brand + competitors"},p:{show:false,note:""}},{text:'"Updating BirdsAtFive positioning to lead with AI-first ABM."',o:{show:true,note:"Positioning rewritten"},t:{show:false,note:""},p:{show:false,note:""}}];const d=demos[Math.floor(Math.random()*demos.length)];document.getElementById('demoInput').textContent=d.text;['o','t','p'].forEach(k=>{const el=document.getElementById(`route-${k}`),n=document.getElementById(`route-${k}-note`);el.style.transition='none';el.style.transform='scale(1)';el.style.opacity='0.3';n.style.opacity='0';});setTimeout(()=>{['o','t','p'].forEach(k=>{const el=document.getElementById(`route-${k}`),n=document.getElementById(`route-${k}-note`);el.style.transition='all 0.5s';if(d[k].show){el.style.opacity='1';el.style.transform='scale(1.05)';n.textContent=d[k].note;n.style.transition='opacity 0.5s';n.style.opacity='1';}else{el.style.opacity='0.2';el.style.transform='scale(0.95)';}});},300);}
+
+// INIT
+buildSidebarTree();renderPeople();renderClients();renderScopesDetail();updateSignal();
+document.querySelectorAll('.tree-children:not(.collapsed)').forEach(el=>{el.style.maxHeight=el.scrollHeight+'px';});
+</script>
+</body>
+</html>
